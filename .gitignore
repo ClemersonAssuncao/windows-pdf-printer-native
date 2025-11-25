@@ -8,3 +8,4 @@ test-output/
 .env
 *.tsbuildinfo
 .npmrc
+coverage/
