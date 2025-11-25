@@ -1,0 +1,70 @@
+{
+  "name": "node-pdf-printer",
+  "version": "1.0.0",
+  "description": "A Node.js library for printing PDF documents on Windows using native DLLs",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:verbose": "jest --verbose",
+    "dev": "tsx",
+    "example:simple": "tsx examples/simple-print.ts",
+    "example:duplex": "tsx examples/duplex-print.ts",
+    "example:advanced": "tsx examples/advanced-print.ts",
+    "example:list": "tsx examples/list-printers.ts",
+    "example:unix": "tsx examples/unix-print.ts"
+  },
+  "files": [
+    "lib/**/*",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "printer",
+    "pdf",
+    "windows",
+    "printing",
+    "winspool",
+    "koffi",
+    "duplex",
+    "native",
+    "node",
+    "typescript",
+    "print-pdf",
+    "windows-printing"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "bugs": {
+    "url": ""
+  },
+  "homepage": "",
+  "dependencies": {
+    "koffi": "^2.9.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "^22.10.0",
+    "jest": "^30.2.0",
+    "ts-jest": "^29.4.5",
+    "tsx": "^4.19.0",
+    "typescript": "^5.9.3"
+  },
+  "os": [
+    "win32",
+    "linux",
+    "darwin"
+  ]
+}

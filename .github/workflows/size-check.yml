@@ -1,0 +1,45 @@
+name: Package Size Check
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  size:
+    name: Check Package Size
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Build
+      run: npm run build
+    
+    - name: Check package size
+      run: |
+        npm pack
+        SIZE=$(du -sh *.tgz | cut -f1)
+        echo "Package size: $SIZE"
+        
+        # Check if size is reasonable (under 1MB)
+        SIZE_BYTES=$(du -sb *.tgz | cut -f1)
+        MAX_SIZE=$((1024 * 1024)) # 1MB
+        
+        if [ $SIZE_BYTES -gt $MAX_SIZE ]; then
+          echo "Warning: Package size ($SIZE) exceeds 1MB"
+          exit 1
+        fi
+        
+        echo "✅ Package size is acceptable: $SIZE"
+    
+    - name: List package contents
+      run: tar -tzf *.tgz | head -50

@@ -1,0 +1,70 @@
+name: Lint
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  typescript:
+    name: TypeScript Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Check TypeScript compilation
+      run: npx tsc --noEmit
+    
+    - name: Build project
+      run: npm run build
+
+  package-validation:
+    name: Validate Package
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Build
+      run: npm run build
+    
+    - name: Check package
+      run: |
+        npm pack --dry-run
+        npx publint
+      continue-on-error: true
+    
+    - name: Validate package.json
+      run: |
+        node -e "const pkg = require('./package.json'); if (!pkg.name || !pkg.version || !pkg.main || !pkg.types) { console.error('Missing required package.json fields'); process.exit(1); }"
+    
+    - name: Check for sensitive files
+      run: |
+        if [ -f ".env" ]; then
+          echo "Warning: .env file found"
+          exit 1
+        fi
+        if [ -f ".npmrc" ] && grep -q "authToken" .npmrc; then
+          echo "Warning: .npmrc contains authToken"
+          exit 1
+        fi
