@@ -190,6 +190,50 @@ interface PrintOptions {
 }
 ```
 
+**Print Options Explained:**
+
+- **`copies`**: Number of copies to print (1-9999). Default: 1
+  
+- **`duplex`**: Duplex (double-sided) printing mode
+  - `'simplex'` - Single-sided printing (one side of paper)
+  - `'horizontal'` - Flip on short edge (like a notepad)
+  - `'vertical'` - Flip on long edge (like a book)
+
+- **`paperSize`**: Paper size to use
+  - Windows: Numeric constant (e.g., `9` for A4, `1` for Letter)
+  - Unix: String format (e.g., `'a4'`, `'letter'`, `'legal'`)
+  - See [Paper Sizes constants](#paper-sizes) below
+
+- **`paperSource`**: Paper tray/source (Windows only)
+  - `1` - Upper tray
+  - `2` - Lower tray
+  - `3` - Middle tray
+  - `4` - Manual feed
+  - `7` - Auto select
+  - Exact values depend on printer model
+
+- **`orientation`**: Page orientation
+  - `'portrait'` - Vertical orientation (default)
+  - `'landscape'` - Horizontal orientation (90° rotation)
+
+- **`color`**: Color printing mode
+  - `true` - Color printing (if printer supports)
+  - `false` - Monochrome/grayscale printing
+
+- **`quality`**: Print quality level (Windows only)
+  - `-4` - High quality (slower, more ink)
+  - `-3` - Medium quality
+  - `-2` - Low quality
+  - `-1` - Draft quality (faster, less ink)
+
+- **`collate`**: Collation for multiple copies
+  - `true` - Print complete sets (Page 1,2,3... Page 1,2,3... Page 1,2,3...)
+  - `false` - Print all of each page (Page 1,1,1... Page 2,2,2... Page 3,3,3...)
+  - Only matters when `copies > 1` and document has multiple pages
+  - Example: 3 copies of a 5-page document
+    - Collated: ①②③④⑤ ①②③④⑤ ①②③④⑤ (ready to distribute)
+    - Not collated: ①①① ②②② ③③③ ④④④ ⑤⑤⑤ (for manual assembly)
+
 #### `PrinterInfo`
 
 ```typescript
