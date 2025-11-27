@@ -1,15 +1,24 @@
 import * as os from 'os';
 
-const describeWindows = os.platform() === 'win32' ? describe : describe.skip;
+const isWindows = os.platform() === 'win32';
 
-describeWindows('PrinterManager', () => {
+// Only run these tests on Windows - skip on Unix/Linux/macOS
+const describeWindows = isWindows ? describe : describe.skip;
+
+if (!isWindows) {
+  console.log('⏭️  Skipping PrinterManager tests (not running on Windows)');
+}
+
+describeWindows('PrinterManager (Windows)', () => {
   let PrinterManager: typeof import('../src/printer-manager').PrinterManager;
 
   beforeAll(async () => {
-    if (os.platform() === 'win32') {
-      const module = await import('../src/printer-manager');
-      PrinterManager = module.PrinterManager;
+    // Double-check we're on Windows before importing Windows-specific modules
+    if (!isWindows) {
+      throw new Error('PrinterManager tests should only run on Windows');
     }
+    const module = await import('../src/printer-manager');
+    PrinterManager = module.PrinterManager;
   });
 
   describe('getAvailablePrinters', () => {

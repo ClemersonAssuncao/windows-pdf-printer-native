@@ -1,27 +1,19 @@
-// Main entry point for node-pdf-printer library
-import * as os from 'os';
-import { PrinterManager as WindowsPrinterManager } from './printer-manager';
-import { PDFPrinter as WindowsPDFPrinter } from './pdf-printer';
-import type { PrintOptions as WindowsPrintOptions } from './pdf-printer';
-import type { PrinterInfo as WindowsPrinterInfo, PrinterCapabilities as WindowsPrinterCapabilities } from './printer-manager';
-import { UnixPrinterManager, UnixPDFPrinter } from './unix-printer';
-import type { UnixPrintOptions, UnixPrinterInfo } from './unix-printer';
+// Clean Architecture Entry Point
+export * from './core/types';
+export * from './core/interfaces';
+export { PlatformDetector } from './services/platform-detector.service';
+export { PrinterFactory } from './factories/printer.factory';
 
-// Detect platform
-const isWindows = os.platform() === 'win32';
-
-// Export Windows-specific types and constants
-export type { WindowsPrintOptions, WindowsPrinterInfo, WindowsPrinterCapabilities };
-export type { UnixPrintOptions, UnixPrinterInfo };
-
-// Unified types
-export type PrintOptions = WindowsPrintOptions | UnixPrintOptions;
-export type PrinterInfo = WindowsPrinterInfo | UnixPrinterInfo;
-
-// Export platform-specific classes if needed
+// Re-export platform-specific implementations for backward compatibility
+export { WindowsPrinterManagerAdapter } from './adapters/windows/windows-printer-manager.adapter';
 export { PDFPrinter as WindowsPDFPrinter } from './pdf-printer';
 export { PrinterManager as WindowsPrinterManager } from './printer-manager';
-export { UnixPDFPrinter, UnixPrinterManager };
+export { UnixPDFPrinter, UnixPrinterManager } from './unix-printer';
+
+// Export unified types for backward compatibility
+export type { PrintOptions as WindowsPrintOptions } from './pdf-printer';
+export type { PrinterInfo as WindowsPrinterInfo, PrinterCapabilities as WindowsPrinterCapabilities } from './printer-manager';
+export type { UnixPrintOptions, UnixPrinterInfo } from './unix-printer';
 
 // Export Windows constants (always exported, but only work on Windows)
 export {
@@ -41,30 +33,34 @@ export {
   LANDSCAPE,
   MONOCHROME,
   COLOR
-} from './windows-print-api';
+} from './adapters/windows/api/winspool.api';
+
+// Simple, clean facade API
+import type { PrintOptions, PrinterInfo } from './core/types';
+import { PrinterFactory } from './factories/printer.factory';
+import { PlatformDetector } from './services/platform-detector.service';
 
 /**
- * Cross-platform PDFPrinter class that automatically selects the correct implementation
+ * Cross-platform PDFPrinter - automatically uses correct implementation
+ * 
+ * @example
+ * ```typescript
+ * const printer = new PDFPrinter();
+ * await printer.print('./document.pdf', { copies: 2, duplex: 'vertical' });
+ * ```
  */
 export class PDFPrinter {
-  private printer: WindowsPDFPrinter | UnixPDFPrinter;
-  private isUnix: boolean;
+  private printer: any;
   
   constructor(printerName?: string) {
-    this.isUnix = !isWindows;
-    
-    if (isWindows) {
-      this.printer = new WindowsPDFPrinter(printerName);
-    } else {
-      this.printer = new UnixPDFPrinter(printerName);
-    }
+    this.printer = PrinterFactory.createPrinter(printerName);
   }
   
-  async print(pdfPath: string, options: any = {}): Promise<void> {
+  async print(pdfPath: string, options?: PrintOptions): Promise<void> {
     return this.printer.print(pdfPath, options);
   }
   
-  async printRaw(data: Buffer, documentName?: string, options: any = {}): Promise<void> {
+  async printRaw(data: Buffer, documentName?: string, options?: PrintOptions): Promise<void> {
     return this.printer.printRaw(data, documentName, options);
   }
   
@@ -73,50 +69,43 @@ export class PDFPrinter {
   }
   
   async getCapabilities() {
-    if (this.isUnix && 'getCapabilities' in this.printer) {
-      return await (this.printer as UnixPDFPrinter).getCapabilities();
-    }
     return this.printer.getCapabilities();
   }
 }
 
 /**
- * Cross-platform PrinterManager
+ * Cross-platform PrinterManager - automatically uses correct implementation
+ * 
+ * @example
+ * ```typescript
+ * const printers = await PrinterManager.getAvailablePrinters();
+ * const defaultPrinter = await PrinterManager.getDefaultPrinter();
+ * ```
  */
 export class PrinterManager {
+  private static manager = PrinterFactory.createPrinterManager();
+  
   static async getAvailablePrinters(): Promise<PrinterInfo[]> {
-    if (isWindows) {
-      return WindowsPrinterManager.getAvailablePrinters();
-    } else {
-      return await UnixPrinterManager.getAvailablePrinters();
-    }
+    const result = this.manager.getAvailablePrinters();
+    return result instanceof Promise ? await result : result;
   }
   
   static async getDefaultPrinter(): Promise<string | null> {
-    if (isWindows) {
-      return WindowsPrinterManager.getDefaultPrinter();
-    } else {
-      return await UnixPrinterManager.getDefaultPrinter();
-    }
+    const result = this.manager.getDefaultPrinter();
+    return result instanceof Promise ? await result : result;
   }
   
   static async printerExists(printerName: string): Promise<boolean> {
-    if (isWindows) {
-      return WindowsPrinterManager.printerExists(printerName);
-    } else {
-      return await UnixPrinterManager.printerExists(printerName);
-    }
+    const result = this.manager.printerExists(printerName);
+    return result instanceof Promise ? await result : result;
   }
   
   static getPrinterCapabilities(printerName: string) {
-    if (isWindows) {
-      return WindowsPrinterManager.getPrinterCapabilities(printerName);
-    }
-    return null; // Unix doesn't support this yet
+    return this.manager.getPrinterCapabilities(printerName);
   }
 }
 
-// Helper functions with cross-platform support
+// Helper functions
 export async function listPrinters(): Promise<PrinterInfo[]> {
   return PrinterManager.getAvailablePrinters();
 }
@@ -130,5 +119,5 @@ export async function printerExists(printerName: string): Promise<boolean> {
 }
 
 export function getPlatform(): 'windows' | 'unix' {
-  return isWindows ? 'windows' : 'unix';
+  return PlatformDetector.getPlatform();
 }

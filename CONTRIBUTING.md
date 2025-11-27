@@ -57,23 +57,85 @@ Please be respectful and constructive in all interactions. We're building this t
 ```
 node-pdf-printer/
 ├── src/
-│   ├── index.ts              # Main entry point with cross-platform logic
-│   ├── windows-print-api.ts  # Windows native API bindings (Koffi)
-│   ├── printer-manager.ts    # Windows printer management
-│   ├── pdf-printer.ts        # Windows PDF printing implementation
-│   └── unix-printer.ts       # Unix/Linux/macOS printing implementation
+│   ├── core/                          # 🎯 Domain layer (platform-agnostic)
+│   │   ├── types/
+│   │   │   └── index.ts               # PrintOptions, PrinterInfo, PrinterCapabilities
+│   │   └── interfaces/
+│   │       └── index.ts               # IPrinter, IPrinterManager (contracts)
+│   │
+│   ├── adapters/                      # 🔌 Platform-specific implementations
+│   │   └── windows/
+│   │       ├── api/
+│   │       │   └── winspool.api.ts   # Windows API bindings (Koffi FFI)
+│   │       └── windows-printer-manager.adapter.ts  # Windows IPrinterManager impl
+│   │
+│   ├── services/                      # 🛠️ Utility services
+│   │   └── platform-detector.service.ts  # Platform detection (Windows/Unix)
+│   │
+│   ├── factories/                     # 🏭 Factory pattern
+│   │   └── printer.factory.ts        # Creates platform-specific instances
+│   │
+│   ├── index.ts                       # 📦 Main entry point (public API)
+│   ├── pdf-printer.ts                 # Windows PDF printer implementation
+│   ├── printer-manager.ts             # Windows printer manager
+│   └── unix-printer.ts                # Unix/Linux/macOS implementation
+│
 ├── examples/
-│   ├── simple-print.ts       # Basic printing example
-│   ├── duplex-print.ts       # Duplex printing examples
-│   ├── advanced-print.ts     # Advanced options example
-│   ├── list-printers.ts      # List available printers
-│   └── unix-print.ts         # Unix-specific example
-├── lib/                      # Compiled JavaScript output (git-ignored)
-├── README.md                 # Main documentation
-├── CONTRIBUTING.md           # This file
-├── CHANGELOG.md              # Version history
-└── package.json              # Package configuration
+│   ├── simple-print.ts                # Basic printing example
+│   ├── duplex-print.ts                # Duplex printing examples
+│   ├── advanced-print.ts              # Advanced options example
+│   ├── list-printers.ts               # List available printers
+│   ├── test-devmode.ts                # Test DEVMODE configuration
+│   ├── inspect-devmode.ts             # Inspect DEVMODE settings
+│   └── unix-print.ts                  # Unix-specific example
+│
+├── tests/                             # 🧪 Test suite
+│   ├── windows-print-api.test.ts      # Windows API tests
+│   ├── printer-manager.test.ts        # Printer manager tests
+│   ├── pdf-printer.test.ts            # PDF printer tests
+│   ├── unix-printer.test.ts           # Unix printer tests
+│   └── cross-platform.test.ts         # Cross-platform tests
+│
+├── docs/
+│   ├── TESTING-DEVMODE.md             # DEVMODE testing guide
+│   ├── CLEAN-ARCHITECTURE.md          # Architecture documentation
+│   └── GET-PRINTJOB-VS-DEVMODE.md     # PowerShell vs DEVMODE explanation
+│
+├── lib/                               # Compiled JavaScript output
+├── README.md                          # Main documentation
+├── CONTRIBUTING.md                    # This file
+├── CHANGELOG.md                       # Version history
+└── package.json                       # Package configuration
 ```
+
+### Architecture Overview
+
+This project follows **Clean Architecture** principles:
+
+**Core Layer** (`src/core/`)
+- Platform-agnostic domain types and interfaces
+- No external dependencies
+- Defines contracts that all implementations must follow
+
+**Adapters Layer** (`src/adapters/`)
+- Platform-specific implementations (Windows, Unix)
+- Windows: Uses Koffi FFI for native winspool.drv API calls
+- Unix: Uses CUPS via child_process
+
+**Services Layer** (`src/services/`)
+- Utility services like platform detection
+- Reusable across different adapters
+
+**Factories Layer** (`src/factories/`)
+- Factory pattern for creating platform-specific instances
+- Implements dependency injection
+
+**Public API** (`src/index.ts`)
+- Simple, clean facade API
+- Maintains backward compatibility
+- Exports both legacy and new architecture APIs
+
+See [CLEAN-ARCHITECTURE.md](CLEAN-ARCHITECTURE.md) for detailed architecture documentation.
 
 ## Development Workflow
 
@@ -166,37 +228,130 @@ async print(pdfPath: string, options: PrintOptions = {}): Promise<void> {
 
 ## Testing
 
+### Automated Testing
+
+This project includes a comprehensive test suite with 73+ tests:
+
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode (for development)
+npm run test:watch
+
+# Run tests with coverage report
+npm run test:coverage
+
+# Run specific test file
+npm test -- windows-print-api.test.ts
+```
+
+**Test Coverage:**
+- ✅ Windows API bindings (Koffi structures, constants, functions)
+- ✅ Printer Manager (list printers, default printer, capabilities)
+- ✅ PDF Printer (print, printRaw, options handling)
+- ✅ Unix Printer (CUPS integration) - skipped on Windows
+- ✅ Cross-platform compatibility
+- ✅ Error handling and edge cases
+
 ### Manual Testing
 
 Before submitting a PR, test on available platforms:
 
-1. **Windows Testing**
-   ```bash
-   npm run example:simple
-   npm run example:duplex
-   npm run example:advanced
-   ```
+**1. Windows Testing**
+```bash
+# Build project
+npm run build
 
-2. **Unix/Linux Testing**
-   ```bash
-   npm run example:unix
-   npm run example:simple
-   ```
+# List printers
+npm run example:list
 
-3. **Cross-Platform Testing**
-   - Test with different printers (physical and virtual)
-   - Test with various PDF files
-   - Verify error handling with invalid inputs
+# Test basic printing
+npm run example:simple
+
+# Test duplex printing
+npm run example:duplex
+
+# Test advanced options
+npm run example:advanced
+
+# Verify DEVMODE configuration
+npm run example:inspect-devmode
+npm run example:test-devmode
+```
+
+**2. Unix/Linux/macOS Testing**
+```bash
+# Ensure CUPS is running
+systemctl status cups  # Linux
+# or
+open "http://localhost:631"  # macOS
+
+# Run tests
+npm run example:unix
+npm run example:simple
+npm run example:list
+```
+
+**3. DEVMODE Verification (Windows)**
+
+To verify print settings are correctly applied:
+
+```bash
+# Method 1: Inspect DEVMODE directly (RECOMMENDED)
+npm run example:inspect-devmode
+
+# Method 2: Test with print job monitoring
+npm run example:test-devmode
+
+# Method 3: Monitor print spooler
+npm run example:monitor
+```
+
+See [TESTING-DEVMODE.md](TESTING-DEVMODE.md) for detailed instructions.
+
+**4. Cross-Platform Testing**
+- Test with different printers (physical and virtual)
+- Test with various PDF files (small, large, complex)
+- Test with Microsoft Print to PDF (Windows)
+- Test with CUPS-PDF (Linux)
+- Verify error handling with:
+  - Non-existent printers
+  - Invalid file paths
+  - Corrupted PDF files
+  - Invalid print options
 
 ### Test Checklist
 
+Before submitting a PR, ensure:
+
+**Code Quality:**
 - [ ] Code compiles without errors: `npm run build`
-- [ ] All examples run successfully
 - [ ] No TypeScript type errors
-- [ ] Documentation is updated
+- [ ] All automated tests pass: `npm test`
+- [ ] Code follows existing style and patterns
+- [ ] JSDoc comments added for public APIs
+
+**Functionality:**
+- [ ] All examples run successfully
 - [ ] Works with default printer
 - [ ] Works with named printer
+- [ ] Print options are correctly applied (verify DEVMODE on Windows)
 - [ ] Error messages are clear and helpful
+- [ ] Handles edge cases gracefully
+
+**Documentation:**
+- [ ] README.md updated if adding features
+- [ ] CHANGELOG.md updated with changes
+- [ ] Code comments explain complex logic
+- [ ] Examples added for new features
+
+**Architecture:**
+- [ ] Follows Clean Architecture principles
+- [ ] Platform-specific code in appropriate adapters
+- [ ] Interfaces used for contracts
+- [ ] No breaking changes to public API (unless major version)
+- [ ] Backward compatibility maintained
 
 ## Submitting Changes
 

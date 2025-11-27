@@ -23,7 +23,7 @@ import {
   MONOCHROME,
   COLOR as COLOR_MODE,
   GetLastError
-} from './windows-print-api';
+} from './adapters/windows/api/winspool.api';
 import { PrinterManager } from './printer-manager';
 
 export interface PrintOptions {

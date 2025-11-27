@@ -1,15 +1,23 @@
 import * as os from 'os';
 
-// Only run these tests on Windows
-const describeWindows = os.platform() === 'win32' ? describe : describe.skip;
+const isWindows = os.platform() === 'win32';
+
+// Only run these tests on Windows - skip on Unix/Linux/macOS
+const describeWindows = isWindows ? describe : describe.skip;
+
+if (!isWindows) {
+  console.log('⏭️  Skipping Windows Print API tests (not running on Windows)');
+}
 
 describeWindows('Windows Print API', () => {
-  let winApi: typeof import('../src/windows-print-api');
+  let winApi: typeof import('../src/adapters/windows/api/winspool.api');
 
   beforeAll(async () => {
-    if (os.platform() === 'win32') {
-      winApi = await import('../src/windows-print-api');
+    // Double-check we're on Windows before importing Windows-specific modules
+    if (!isWindows) {
+      throw new Error('Windows Print API tests should only run on Windows');
     }
+    winApi = await import('../src/adapters/windows/api/winspool.api');
   });
 
   describe('Library Loading', () => {

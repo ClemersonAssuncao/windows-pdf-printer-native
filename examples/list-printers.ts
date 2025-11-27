@@ -11,7 +11,7 @@ async function main() {
     return;
   }
   
-  printers.forEach((printer, index) => {
+  printers.forEach(async (printer, index) => {
     console.log(`${index + 1}. ${printer.name}${printer.isDefault ? ' (DEFAULT)' : ''}`);
     console.log(`   Driver: ${printer.driverName || 'N/A'}`);
     console.log(`   Port: ${printer.portName || 'N/A'}`);
@@ -25,7 +25,7 @@ async function main() {
     }
     
     // Get capabilities (Windows only)
-    const capabilities = PrinterManager.getPrinterCapabilities(printer.name);
+    const capabilities = await PrinterManager.getPrinterCapabilities(printer.name);
     if (capabilities) {
       console.log('   Capabilities:');
       console.log(`     - Duplex: ${capabilities.supportsDuplex ? 'Supported' : 'Not supported'}`);

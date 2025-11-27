@@ -1,24 +1,53 @@
-# Test Suite
+# Test Suite Documentation
 
-This directory contains the comprehensive test suite for node-pdf-printer.
+This directory contains the comprehensive test suite for node-pdf-printer with **platform-specific isolation**.
+
+## 🎯 Platform-Specific Test Isolation
+
+Tests are organized to **only run on their target platform**. Windows tests will never execute on Linux, and vice versa.
 
 ## Test Structure
 
 ```
 tests/
-├── windows-print-api.test.ts    # Windows API bindings tests
-├── printer-manager.test.ts      # PrinterManager functionality tests
-├── pdf-printer.test.ts          # PDF printing tests (Windows)
-├── unix-printer.test.ts         # Unix/CUPS printing tests
-└── cross-platform.test.ts       # Cross-platform integration tests
+├── windows-print-api.test.ts    # ⊞ Windows API bindings (winspool.drv, Koffi)
+├── printer-manager.test.ts      # ⊞ Windows PrinterManager functionality
+├── pdf-printer.test.ts          # ⊞ Windows PDF printing with DEVMODE
+├── unix-printer.test.ts         # 🐧 Unix/CUPS printing (Linux/macOS)
+├── cross-platform.test.ts       # 🌍 Unified API (runs on all platforms)
+└── README.md                    # This file
 ```
+
+### Platform Requirements
+
+| Test File | Runs On | Skips On | Tests |
+|-----------|---------|----------|-------|
+| `windows-print-api.test.ts` | ⊞ Windows | 🐧 Unix/Linux/macOS | Koffi FFI, Windows structures, API functions |
+| `printer-manager.test.ts` | ⊞ Windows | 🐧 Unix/Linux/macOS | Printer enumeration, default printer, capabilities |
+| `pdf-printer.test.ts` | ⊞ Windows | 🐧 Unix/Linux/macOS | PDF printing, DEVMODE configuration, raw printing |
+| `unix-printer.test.ts` | 🐧 Unix/Linux/macOS | ⊞ Windows | CUPS integration, lp command, lpstat |
+| `cross-platform.test.ts` | 🌍 All | None | Unified API, platform detection, factory pattern |
 
 ## Running Tests
 
-### All Tests
+### All Tests (Automatic Platform Detection)
 ```bash
 npm test
 ```
+
+**On Windows:**
+- ✅ Runs: windows-print-api.test.ts (25 tests)
+- ✅ Runs: printer-manager.test.ts (18 tests)
+- ✅ Runs: pdf-printer.test.ts (30 tests)
+- ✅ Runs: cross-platform.test.ts (20 tests)
+- ⏭️  Skips: unix-printer.test.ts (17 tests)
+
+**On Unix/Linux/macOS:**
+- ⏭️  Skips: windows-print-api.test.ts (25 tests)
+- ⏭️  Skips: printer-manager.test.ts (18 tests)
+- ⏭️  Skips: pdf-printer.test.ts (30 tests)
+- ✅ Runs: cross-platform.test.ts (20 tests)
+- ✅ Runs: unix-printer.test.ts (17 tests)
 
 ### Watch Mode (auto-rerun on changes)
 ```bash
@@ -34,6 +63,60 @@ npm run test:coverage
 ```bash
 npm run test:verbose
 ```
+
+## 🔒 Safety Mechanisms
+
+### 1. Platform Detection with describe.skip
+
+Each platform-specific test uses `describe.skip` to automatically skip on incompatible platforms:
+
+```typescript
+const isWindows = os.platform() === 'win32';
+const describeWindows = isWindows ? describe : describe.skip;
+
+if (!isWindows) {
+  console.log('⏭️  Skipping Windows tests (not running on Windows)');
+}
+
+describeWindows('Windows-specific tests', () => {
+  // Only runs on Windows
+});
+```
+
+### 2. Double-Check in beforeAll
+
+Each test has a safety check to prevent accidental execution:
+
+```typescript
+beforeAll(async () => {
+  // Double-check we're on Windows before importing
+  if (!isWindows) {
+    throw new Error('Windows tests should only run on Windows');
+  }
+  // Safe to import Windows modules now
+  winApi = await import('../src/adapters/windows/api/winspool.api');
+});
+```
+
+### 3. Dynamic Imports
+
+All platform-specific modules use dynamic imports to avoid loading errors:
+
+```typescript
+// ✅ Good: Dynamic import (only imported if test runs)
+const winApi = await import('../src/adapters/windows/api/winspool.api');
+
+// ❌ Bad: Static import (would fail on Unix even if test is skipped)
+import * as winApi from '../src/adapters/windows/api/winspool.api';
+```
+
+### Why This Matters
+
+Without these safety mechanisms:
+- ❌ Koffi would try to load winspool.drv on Linux (causing errors)
+- ❌ CUPS commands would try to execute on Windows (causing errors)
+- ❌ Tests would fail due to missing platform-specific dependencies
+- ❌ CI/CD pipelines would fail on cross-platform builds
 
 ## Test Categories
 

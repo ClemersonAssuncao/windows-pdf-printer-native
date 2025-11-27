@@ -2,7 +2,14 @@ import * as os from 'os';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const describeWindows = os.platform() === 'win32' ? describe : describe.skip;
+const isWindows = os.platform() === 'win32';
+
+// Only run these tests on Windows - skip on Unix/Linux/macOS
+const describeWindows = isWindows ? describe : describe.skip;
+
+if (!isWindows) {
+  console.log('⏭️  Skipping PDFPrinter tests (not running on Windows)');
+}
 
 describeWindows('PDFPrinter (Windows)', () => {
   let PDFPrinter: typeof import('../src/pdf-printer').PDFPrinter;
@@ -11,17 +18,20 @@ describeWindows('PDFPrinter (Windows)', () => {
   let testPdfPath: string;
 
   beforeAll(async () => {
-    if (os.platform() === 'win32') {
-      const pdfModule = await import('../src/pdf-printer');
-      const managerModule = await import('../src/printer-manager');
-      PDFPrinter = pdfModule.PDFPrinter;
-      PrinterManager = managerModule.PrinterManager;
-      
-      printer = new PDFPrinter();
+    // Double-check we're on Windows before importing Windows-specific modules
+    if (!isWindows) {
+      throw new Error('PDFPrinter tests should only run on Windows');
+    }
+    const pdfModule = await import('../src/pdf-printer');
+    const managerModule = await import('../src/printer-manager');
+    PDFPrinter = pdfModule.PDFPrinter;
+    PrinterManager = managerModule.PrinterManager;
+    
+    printer = new PDFPrinter();
 
-      // Create a minimal test PDF file
-      testPdfPath = path.join(__dirname, 'test-document.pdf');
-      const minimalPdf = `%PDF-1.4
+    // Create a minimal test PDF file
+    testPdfPath = path.join(__dirname, 'test-document.pdf');
+    const minimalPdf = `%PDF-1.4
 1 0 obj
 <<
 /Type /Catalog
@@ -79,13 +89,12 @@ trailer
 startxref
 410
 %%EOF`;
-      
-      fs.writeFileSync(testPdfPath, minimalPdf);
-    }
+    
+    fs.writeFileSync(testPdfPath, minimalPdf);
   });
 
   afterAll(() => {
-    if (testPdfPath && fs.existsSync(testPdfPath)) {
+    if (isWindows && testPdfPath && fs.existsSync(testPdfPath)) {
       fs.unlinkSync(testPdfPath);
     }
   });

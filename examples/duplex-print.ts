@@ -11,7 +11,7 @@ async function main() {
   console.log(`Using printer: ${printer.getPrinterName()}`);
   
   // Check printer capabilities
-  const capabilities = printer.getCapabilities();
+  const capabilities = await printer.getCapabilities();
   if (capabilities) {
     console.log('\nPrinter capabilities:');
     console.log(`  Duplex support: ${capabilities.supportsDuplex ? 'Yes' : 'No'}`);
@@ -30,7 +30,7 @@ async function main() {
       copies: 1
     });
     console.log('✓ Simplex print job sent successfully!\n');
-  } catch (error) {
+  } catch (error: any) {
     console.error('✗ Print failed:', error.message, '\n');
   }
   
@@ -43,7 +43,7 @@ async function main() {
       copies: 1
     });
     console.log('✓ Duplex horizontal print job sent successfully!\n');
-  } catch (error) {
+  } catch (error: any) {
     console.error('✗ Print failed:', error.message, '\n');
   }
   
@@ -56,7 +56,7 @@ async function main() {
       copies: 1
     });
     console.log('✓ Duplex vertical print job sent successfully!\n');
-  } catch (error) {
+  } catch (error: any) {
     console.error('✗ Print failed:', error.message, '\n');
   }
 }

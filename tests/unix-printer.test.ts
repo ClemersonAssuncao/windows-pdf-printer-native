@@ -3,16 +3,25 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 
 const execAsync = promisify(exec);
-const describeUnix = os.platform() !== 'win32' ? describe : describe.skip;
+const isUnix = os.platform() !== 'win32';
+
+// Only run these tests on Unix/Linux/macOS - skip on Windows
+const describeUnix = isUnix ? describe : describe.skip;
+
+if (!isUnix) {
+  console.log('⏭️  Skipping Unix Printer tests (not running on Unix/Linux/macOS)');
+}
 
 describeUnix('UnixPDFPrinter', () => {
   let UnixPDFPrinter: typeof import('../src/unix-printer').UnixPDFPrinter;
 
   beforeAll(async () => {
-    if (os.platform() !== 'win32') {
-      const module = await import('../src/unix-printer');
-      UnixPDFPrinter = module.UnixPDFPrinter;
+    // Double-check we're on Unix before importing Unix-specific modules
+    if (!isUnix) {
+      throw new Error('UnixPDFPrinter tests should only run on Unix/Linux/macOS');
     }
+    const module = await import('../src/unix-printer');
+    UnixPDFPrinter = module.UnixPDFPrinter;
   });
 
   describe('Constructor', () => {
