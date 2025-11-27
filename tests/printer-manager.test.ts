@@ -9,16 +9,18 @@ if (!isWindows) {
   console.log('⏭️  Skipping PrinterManager tests (not running on Windows)');
 }
 
-describeWindows('PrinterManager (Windows)', () => {
-  let PrinterManager: typeof import('../src/printer-manager').PrinterManager;
+// Import at module level to avoid re-importing
+let PrinterManager: typeof import('../src/printer-manager').PrinterManager;
+if (isWindows) {
+  PrinterManager = require('../src/printer-manager').PrinterManager;
+}
 
-  beforeAll(async () => {
-    // Double-check we're on Windows before importing Windows-specific modules
+describeWindows('PrinterManager (Windows)', () => {
+  beforeAll(() => {
+    // Double-check we're on Windows before running tests
     if (!isWindows) {
       throw new Error('PrinterManager tests should only run on Windows');
     }
-    const module = await import('../src/printer-manager');
-    PrinterManager = module.PrinterManager;
   });
 
   describe('getAvailablePrinters', () => {

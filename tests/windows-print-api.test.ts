@@ -9,15 +9,19 @@ if (!isWindows) {
   console.log('⏭️  Skipping Windows Print API tests (not running on Windows)');
 }
 
-describeWindows('Windows Print API', () => {
-  let winApi: typeof import('../src/adapters/windows/api/winspool.api');
+// Import winApi once at module level to avoid re-importing in each test suite
+let winApi: typeof import('../src/adapters/windows/api/winspool.api');
+if (isWindows) {
+  // Use require to ensure single import (Jest caches require calls)
+  winApi = require('../src/adapters/windows/api/winspool.api');
+}
 
-  beforeAll(async () => {
-    // Double-check we're on Windows before importing Windows-specific modules
+describeWindows('Windows Print API', () => {
+  beforeAll(() => {
+    // Double-check we're on Windows before running tests
     if (!isWindows) {
       throw new Error('Windows Print API tests should only run on Windows');
     }
-    winApi = await import('../src/adapters/windows/api/winspool.api');
   });
 
   describe('Library Loading', () => {

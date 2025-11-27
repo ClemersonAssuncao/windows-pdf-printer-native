@@ -12,16 +12,18 @@ if (!isUnix) {
   console.log('⏭️  Skipping Unix Printer tests (not running on Unix/Linux/macOS)');
 }
 
-describeUnix('UnixPDFPrinter', () => {
-  let UnixPDFPrinter: typeof import('../src/unix-printer').UnixPDFPrinter;
+// Import at module level to avoid re-importing
+let UnixPDFPrinter: typeof import('../src/unix-printer').UnixPDFPrinter;
+if (isUnix) {
+  UnixPDFPrinter = require('../src/unix-printer').UnixPDFPrinter;
+}
 
-  beforeAll(async () => {
-    // Double-check we're on Unix before importing Unix-specific modules
+describeUnix('UnixPDFPrinter', () => {
+  beforeAll(() => {
+    // Double-check we're on Unix before running tests
     if (!isUnix) {
       throw new Error('UnixPDFPrinter tests should only run on Unix/Linux/macOS');
     }
-    const module = await import('../src/unix-printer');
-    UnixPDFPrinter = module.UnixPDFPrinter;
   });
 
   describe('Constructor', () => {

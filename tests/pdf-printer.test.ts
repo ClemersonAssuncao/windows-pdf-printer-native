@@ -11,21 +11,23 @@ if (!isWindows) {
   console.log('⏭️  Skipping PDFPrinter tests (not running on Windows)');
 }
 
+// Import at module level to avoid re-importing
+let PDFPrinter: typeof import('../src/pdf-printer').PDFPrinter;
+let PrinterManager: typeof import('../src/printer-manager').PrinterManager;
+if (isWindows) {
+  PDFPrinter = require('../src/pdf-printer').PDFPrinter;
+  PrinterManager = require('../src/printer-manager').PrinterManager;
+}
+
 describeWindows('PDFPrinter (Windows)', () => {
-  let PDFPrinter: typeof import('../src/pdf-printer').PDFPrinter;
-  let PrinterManager: typeof import('../src/printer-manager').PrinterManager;
   let printer: import('../src/pdf-printer').PDFPrinter;
   let testPdfPath: string;
 
-  beforeAll(async () => {
-    // Double-check we're on Windows before importing Windows-specific modules
+  beforeAll(() => {
+    // Double-check we're on Windows before running tests
     if (!isWindows) {
       throw new Error('PDFPrinter tests should only run on Windows');
     }
-    const pdfModule = await import('../src/pdf-printer');
-    const managerModule = await import('../src/printer-manager');
-    PDFPrinter = pdfModule.PDFPrinter;
-    PrinterManager = managerModule.PrinterManager;
     
     printer = new PDFPrinter();
 
