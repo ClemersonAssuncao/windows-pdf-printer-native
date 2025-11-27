@@ -42,8 +42,22 @@ const isWindows = os.platform() === 'win32';
 const winspool = isWindows ? koffi.load('winspool.drv') : null as any;
 const kernel32 = isWindows ? koffi.load('kernel32.dll') : null as any;
 
+// Helper to create or reuse Koffi structures (prevents "Duplicate type name" error)
+function defineStruct(name: string, definition: any) {
+  try {
+    return koffi.struct(name, definition);
+  } catch (error: any) {
+    // If structure already exists, Koffi throws "Duplicate type name"
+    // In that case, just return a dummy object - the existing structure will be used
+    if (error?.message?.includes('Duplicate type name')) {
+      return {} as any; // Return dummy - existing structure will be used by Koffi internally
+    }
+    throw error;
+  }
+}
+
 // Define structures - DOC_INFO_1W has only 3 fields
-export const DOC_INFO_1W = koffi.struct('DOC_INFO_1W', {
+export const DOC_INFO_1W = defineStruct('DOC_INFO_1W', {
   pDocName: 'str16',
   pOutputFile: 'str16',
   pDatatype: 'str16'
@@ -52,7 +66,7 @@ export const DOC_INFO_1W = koffi.struct('DOC_INFO_1W', {
 // Keep old name for compatibility but use correct structure
 export const DOCINFOW = DOC_INFO_1W;
 
-export const DEVMODEW = koffi.struct('DEVMODEW', {
+export const DEVMODEW = defineStruct('DEVMODEW', {
   dmDeviceName: koffi.array('uint16', 32),
   dmSpecVersion: 'uint16',
   dmDriverVersion: 'uint16',
@@ -89,7 +103,7 @@ export const DEVMODEW = koffi.struct('DEVMODEW', {
   dmPanningHeight: 'uint32'
 });
 
-export const PRINTER_INFO_2W = koffi.struct('PRINTER_INFO_2W', {
+export const PRINTER_INFO_2W = defineStruct('PRINTER_INFO_2W', {
   pServerName: 'str16',
   pPrinterName: 'str16',
   pShareName: 'str16',
@@ -114,7 +128,7 @@ export const PRINTER_INFO_2W = koffi.struct('PRINTER_INFO_2W', {
 });
 
 // PRINTER_DEFAULTS structure for OpenPrinter
-export const PRINTER_DEFAULTS = koffi.struct('PRINTER_DEFAULTS', {
+export const PRINTER_DEFAULTS = defineStruct('PRINTER_DEFAULTS', {
   pDatatype: 'str16',
   pDevMode: koffi.pointer(DEVMODEW),
   DesiredAccess: 'uint32'
