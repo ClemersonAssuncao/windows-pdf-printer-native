@@ -385,7 +385,38 @@ Or use npm scripts:
 npm run example:simple
 npm run example:duplex
 npm run example:advanced
+
+# Test DEVMODE configuration
+npm run example:test-devmode
+npm run example:monitor
 ```
+
+## Testing DEVMODE Configuration
+
+To verify that print options (copies, duplex, paper size, etc.) are being applied correctly, see the comprehensive guide: **[TESTING-DEVMODE.md](TESTING-DEVMODE.md)**
+
+Quick test:
+```bash
+# Inspect DEVMODE settings directly ⭐ RECOMMENDED
+npm run example:inspect-devmode
+
+# Test with Microsoft Print to PDF
+npm run example:test-devmode
+
+# Monitor print spooler with detailed instructions
+npm run example:monitor
+```
+
+**Verification methods:**
+1. **⭐ DEVMODE Inspector** - `npm run example:inspect-devmode` - See all DEVMODE fields directly
+2. **Windows Print Queue** - View job properties in the print queue
+3. **PowerShell** - `Get-PrintJob` shows basic job info (⚠️ NOT DEVMODE settings)
+4. **Process Monitor** - Use Sysinternals Process Monitor to see API calls
+5. **Event Viewer** - Check Windows event logs for print job details
+
+**Important:** PowerShell's `Get-PrintJob` does **NOT** show DEVMODE settings (duplex, paper size, orientation, etc.). Use our inspector tool instead!
+
+See [TESTING-DEVMODE.md](TESTING-DEVMODE.md) for detailed instructions on each method.
 
 ## Troubleshooting
 

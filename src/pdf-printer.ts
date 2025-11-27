@@ -1,17 +1,14 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import koffi from 'koffi';
 import {
-  OpenPrinterW,
-  ClosePrinter,
   StartDocPrinterW,
   EndDocPrinter,
   StartPagePrinter,
   EndPagePrinter,
   WritePrinter,
-  DOCINFOW,
-  DEVMODEW,
   DocumentPropertiesW,
+  DM_IN_BUFFER,
+  DM_OUT_BUFFER,
   DM_ORIENTATION,
   DM_PAPERSIZE,
   DM_COPIES,
@@ -23,8 +20,6 @@ import {
   DUPLEX_VERTICAL,
   PORTRAIT,
   LANDSCAPE,
-  PAPER_A4,
-  PAPER_LETTER,
   MONOCHROME,
   COLOR as COLOR_MODE,
   GetLastError
@@ -84,12 +79,22 @@ export class PDFPrinter {
     
     // Open printer
     const printerName = options.printer || this.printerName;
-    const hPrinter = PrinterManager.openPrinter(printerName);
+    
+    // First, open printer temporarily to get DEVMODE
+    const hPrinterTemp = PrinterManager.openPrinter(printerName);
+    const devMode = this.getAndConfigureDevMode(hPrinterTemp, printerName, options);
+    PrinterManager.closePrinter(hPrinterTemp);
+    
+    // Now open printer with configured DEVMODE if options were specified
+    const hasOptions = Object.keys(options).some(key => 
+      ['copies', 'duplex', 'paperSize', 'paperSource', 'orientation', 'color'].includes(key)
+    );
+    
+    const hPrinter = hasOptions && devMode 
+      ? PrinterManager.openPrinterWithDevMode(printerName, devMode)
+      : PrinterManager.openPrinter(printerName);
     
     try {
-      // Configure print settings
-      const devMode = this.createDevMode(options);
-      
       // Read PDF file first
       const pdfData = fs.readFileSync(pdfPath);
       
@@ -139,7 +144,20 @@ export class PDFPrinter {
    */
   async printRaw(data: Buffer, documentName: string = 'Document', options: PrintOptions = {}): Promise<void> {
     const printerName = options.printer || this.printerName;
-    const hPrinter = PrinterManager.openPrinter(printerName);
+    
+    // First, open printer temporarily to get DEVMODE
+    const hPrinterTemp = PrinterManager.openPrinter(printerName);
+    const devMode = this.getAndConfigureDevMode(hPrinterTemp, printerName, options);
+    PrinterManager.closePrinter(hPrinterTemp);
+    
+    // Now open printer with configured DEVMODE if options were specified
+    const hasOptions = Object.keys(options).some(key => 
+      ['copies', 'duplex', 'paperSize', 'paperSource', 'orientation', 'color'].includes(key)
+    );
+    
+    const hPrinter = hasOptions && devMode 
+      ? PrinterManager.openPrinterWithDevMode(printerName, devMode)
+      : PrinterManager.openPrinter(printerName);
     
     try {
       const docInfo = {
@@ -178,13 +196,29 @@ export class PDFPrinter {
   }
   
   /**
-   * Create DEVMODE structure with print options
+   * Get printer's DEVMODE and configure it with print options
    */
-  private createDevMode(options: PrintOptions): any {
-    const devMode: any = {
-      dmFields: 0
-    };
+  private getAndConfigureDevMode(hPrinter: any, printerName: string, options: PrintOptions): any {
+    // Get the size needed for DEVMODE
+    const devModeOut = [null];
+    const sizeNeeded = DocumentPropertiesW(null, hPrinter, printerName, devModeOut, null, 0);
     
+    if (sizeNeeded < 0) {
+      console.warn('Could not get DEVMODE size, printing with default settings');
+      return null;
+    }
+    
+    // Get the default DEVMODE from printer
+    const result = DocumentPropertiesW(null, hPrinter, printerName, devModeOut, null, DM_OUT_BUFFER);
+    
+    if (result < 0 || !devModeOut[0]) {
+      console.warn('Could not get DEVMODE from printer, printing with default settings');
+      return null;
+    }
+    
+    const devMode: any = devModeOut[0];
+    
+    // Apply custom options to the DEVMODE
     // Set copies
     if (options.copies && options.copies > 0) {
       devMode.dmCopies = options.copies;
@@ -231,6 +265,15 @@ export class PDFPrinter {
       devMode.dmFields |= DM_COLOR;
     }
     
+    // Validate the modified DEVMODE with the printer
+    const validatedDevMode = [devMode];
+    const validateResult = DocumentPropertiesW(null, hPrinter, printerName, validatedDevMode, devMode, DM_IN_BUFFER | DM_OUT_BUFFER);
+    
+    if (validateResult >= 0 && validatedDevMode[0]) {
+      return validatedDevMode[0];
+    }
+    
+    console.warn('DEVMODE validation failed, using unvalidated settings');
     return devMode;
   }
   

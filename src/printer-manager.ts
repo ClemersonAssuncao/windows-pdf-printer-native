@@ -9,15 +9,7 @@ import {
   PRINTER_ENUM_LOCAL,
   PRINTER_ENUM_CONNECTIONS,
   PRINTER_INFO_2W,
-  DEVMODEW,
-  DM_ORIENTATION,
-  DM_PAPERSIZE,
-  DM_COPIES,
-  DM_DUPLEX,
-  DM_COLOR,
-  DM_DEFAULTSOURCE,
-  PORTRAIT,
-  LANDSCAPE
+  PRINTER_ACCESS_USE
 } from './windows-print-api';
 import koffi from 'koffi';
 
@@ -93,8 +85,8 @@ export class PrinterManager {
    * Get the default printer name
    */
   static getDefaultPrinter(): string | null {
-    const bufferSize = [256];
-    const buffer = Buffer.alloc(bufferSize[0] * 2); // Unicode characters
+    const bufferSize = [256]; // Buffer size in characters
+    const buffer = Buffer.alloc(256 * 2); // UTF-16, 2 bytes per character
     
     const success = GetDefaultPrinterW(buffer, bufferSize);
     
@@ -161,6 +153,25 @@ export class PrinterManager {
     
     if (!OpenPrinterW(printerName, hPrinter, null)) {
       throw new Error(`Failed to open printer: ${printerName}`);
+    }
+    
+    return hPrinter[0];
+  }
+  
+  /**
+   * Open a printer handle with custom DEVMODE settings
+   */
+  static openPrinterWithDevMode(printerName: string, devMode: any): any {
+    const hPrinter = [null];
+    
+    const printerDefaults = {
+      pDatatype: null,
+      pDevMode: devMode,
+      DesiredAccess: PRINTER_ACCESS_USE
+    };
+    
+    if (!OpenPrinterW(printerName, hPrinter, printerDefaults)) {
+      throw new Error(`Failed to open printer with DEVMODE: ${printerName}`);
     }
     
     return hPrinter[0];

@@ -20,7 +20,9 @@
     "example:duplex": "tsx examples/duplex-print.ts",
     "example:advanced": "tsx examples/advanced-print.ts",
     "example:list": "tsx examples/list-printers.ts",
-    "example:unix": "tsx examples/unix-print.ts"
+    "example:unix": "tsx examples/unix-print.ts",
+    "example:test-devmode": "tsx examples/test-devmode.ts",
+    "example:monitor": "tsx examples/monitor-printers.ts"
   },
   "files": [
     "lib/**/*",

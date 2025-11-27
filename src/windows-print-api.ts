@@ -113,8 +113,19 @@ export const PRINTER_INFO_2W = koffi.struct('PRINTER_INFO_2W', {
   AveragePPM: 'uint32'
 });
 
+// PRINTER_DEFAULTS structure for OpenPrinter
+export const PRINTER_DEFAULTS = koffi.struct('PRINTER_DEFAULTS', {
+  pDatatype: 'str16',
+  pDevMode: koffi.pointer(DEVMODEW),
+  DesiredAccess: 'uint32'
+});
+
+// DocumentProperties flags
+export const DM_IN_BUFFER = 8;
+export const DM_OUT_BUFFER = 2;
+
 // Define Windows API functions - only on Windows platform
-export const OpenPrinterW = isWindows ? winspool.func('OpenPrinterW', 'bool', ['str16', koffi.out(koffi.pointer('void*')), 'void*']) : (() => { throw new Error('Windows API not available on this platform'); }) as any;
+export const OpenPrinterW = isWindows ? winspool.func('OpenPrinterW', 'bool', ['str16', koffi.out(koffi.pointer('void*')), koffi.pointer(PRINTER_DEFAULTS)]) : (() => { throw new Error('Windows API not available on this platform'); }) as any;
 export const ClosePrinter = isWindows ? winspool.func('ClosePrinter', 'bool', ['void*']) : (() => { throw new Error('Windows API not available on this platform'); }) as any;
 export const StartDocPrinterW = isWindows ? winspool.func('StartDocPrinterW', 'uint32', ['void*', 'uint32', koffi.pointer(DOC_INFO_1W)]) : (() => { throw new Error('Windows API not available on this platform'); }) as any;
 export const EndDocPrinter = isWindows ? winspool.func('EndDocPrinter', 'bool', ['void*']) : (() => { throw new Error('Windows API not available on this platform'); }) as any;
@@ -122,7 +133,8 @@ export const StartPagePrinter = isWindows ? winspool.func('StartPagePrinter', 'b
 export const EndPagePrinter = isWindows ? winspool.func('EndPagePrinter', 'bool', ['void*']) : (() => { throw new Error('Windows API not available on this platform'); }) as any;
 export const WritePrinter = isWindows ? winspool.func('WritePrinter', 'bool', ['void*', 'void*', 'uint32', koffi.out(koffi.pointer('uint32'))]) : (() => { throw new Error('Windows API not available on this platform'); }) as any;
 export const EnumPrintersW = isWindows ? winspool.func('EnumPrintersW', 'bool', ['uint32', 'str16', 'uint32', 'void*', 'uint32', koffi.out(koffi.pointer('uint32')), koffi.out(koffi.pointer('uint32'))]) : (() => { throw new Error('Windows API not available on this platform'); }) as any;
-export const GetDefaultPrinterW = isWindows ? winspool.func('GetDefaultPrinterW', 'bool', ['str16', koffi.out(koffi.pointer('uint32'))]) : (() => { throw new Error('Windows API not available on this platform'); }) as any;
+// GetDefaultPrinterW: BOOL GetDefaultPrinterW(LPWSTR pszBuffer, LPDWORD pcchBuffer);
+export const GetDefaultPrinterW = isWindows ? winspool.func('GetDefaultPrinterW', 'bool', ['uint16*', koffi.inout(koffi.pointer('uint32'))]) : (() => { throw new Error('Windows API not available on this platform'); }) as any;
 export const DocumentPropertiesW = isWindows ? winspool.func('DocumentPropertiesW', 'int32', ['void*', 'void*', 'str16', koffi.out(koffi.pointer(DEVMODEW)), koffi.pointer(DEVMODEW), 'uint32']) : (() => { throw new Error('Windows API not available on this platform'); }) as any;
 
 // Enum flags
