@@ -53,6 +53,15 @@ export class PDFPrinter {
   private printer: any;
   
   constructor(printerName?: string) {
+    // Validate printer exists if name provided
+    if (printerName) {
+      const manager = PrinterFactory.createPrinterManager();
+      const exists = manager.printerExists(printerName);
+      const printerExists = exists instanceof Promise ? false : exists; // Sync check for Windows
+      if (!printerExists) {
+        throw new Error(`Printer not found: ${printerName}`);
+      }
+    }
     this.printer = PrinterFactory.createPrinter(printerName);
   }
   
@@ -103,6 +112,9 @@ export class PrinterManager {
   static getPrinterCapabilities(printerName: string) {
     return this.manager.getPrinterCapabilities(printerName);
   }
+  
+  // Alias for Unix compatibility
+  static listPrinters = PrinterManager.getAvailablePrinters;
 }
 
 // Helper functions
