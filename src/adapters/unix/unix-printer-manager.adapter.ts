@@ -1,30 +1,63 @@
 // Unix Printer Manager Adapter - implements IPrinterManager interface
 import type { IPrinterManager } from '../../core/interfaces';
 import type { PrinterInfo, PrinterCapabilities } from '../../core/types';
-import { UnixPrinterManager } from '../../unix-printer';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 /**
- * Adapter that wraps UnixPrinterManager static methods to implement IPrinterManager interface
+ * Unix Printer Manager using lpstat and lp commands
  */
 export class UnixPrinterManagerAdapter implements IPrinterManager {
   async getAvailablePrinters(): Promise<PrinterInfo[]> {
-    const printers = await UnixPrinterManager.getAvailablePrinters();
-    // Convert UnixPrinterInfo to PrinterInfo
-    return printers.map(p => ({
-      name: p.name,
-      status: 0, // Unix doesn't provide numeric status codes
-      isDefault: p.isDefault || false,
-      location: p.location,
-      comment: p.description
-    }));
+    try {
+      const { stdout } = await execAsync('lpstat -p -d 2>/dev/null || lpstat -p');
+      const printers: PrinterInfo[] = [];
+      const defaultPrinter = await this.getDefaultPrinter();
+      
+      const lines = stdout.split('\n').filter(line => line.startsWith('printer'));
+      
+      for (const line of lines) {
+        // Format: "printer PrinterName is idle. enabled since ..."
+        const match = line.match(/printer\s+(\S+)\s+(.*)/);
+        if (match) {
+          const name = match[1];
+          const statusText = match[2];
+          
+          printers.push({
+            name,
+            status: 0, // Unix doesn't provide numeric status codes
+            isDefault: name === defaultPrinter,
+            comment: statusText
+          });
+        }
+      }
+      
+      return printers;
+    } catch (error) {
+      return [];
+    }
   }
   
   async getDefaultPrinter(): Promise<string | null> {
-    return UnixPrinterManager.getDefaultPrinter();
+    try {
+      const { stdout } = await execAsync('lpstat -d 2>/dev/null');
+      // Format: "system default destination: PrinterName"
+      const match = stdout.match(/default destination:\s*(\S+)/);
+      return match ? match[1] : null;
+    } catch (error) {
+      return null;
+    }
   }
   
   async printerExists(printerName: string): Promise<boolean> {
-    return UnixPrinterManager.printerExists(printerName);
+    try {
+      const { stdout } = await execAsync(`lpstat -p "${printerName}" 2>/dev/null`);
+      return stdout.includes(`printer ${printerName}`);
+    } catch (error) {
+      return false;
+    }
   }
   
   async getPrinterCapabilities(printerName: string): Promise<PrinterCapabilities | null> {

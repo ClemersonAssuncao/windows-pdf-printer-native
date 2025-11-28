@@ -7,14 +7,13 @@ export { PrinterFactory } from './factories/printer.factory';
 // Re-export platform-specific implementations for backward compatibility
 export { WindowsPrinterManagerAdapter } from './adapters/windows/windows-printer-manager.adapter';
 export { UnixPrinterManagerAdapter } from './adapters/unix/unix-printer-manager.adapter';
-export { PDFPrinter as WindowsPDFPrinter } from './pdf-printer';
-export { PrinterManager as WindowsPrinterManager } from './printer-manager';
-export { UnixPDFPrinter, UnixPrinterManager } from './unix-printer';
+export { WindowsPrinterAdapter } from './adapters/windows/windows-printer.adapter';
+export { UnixPrinterAdapter } from './adapters/unix/unix-printer.adapter';
 
 // Export unified types for backward compatibility
-export type { PrintOptions as WindowsPrintOptions } from './pdf-printer';
-export type { PrinterInfo as WindowsPrinterInfo, PrinterCapabilities as WindowsPrinterCapabilities } from './printer-manager';
-export type { UnixPrintOptions, UnixPrinterInfo } from './unix-printer';
+export type { PrintOptions as WindowsPrintOptions } from './core/types';
+export type { PrinterInfo as WindowsPrinterInfo, PrinterCapabilities as WindowsPrinterCapabilities } from './core/types';
+export type { PrintOptions as UnixPrintOptions, PrinterInfo as UnixPrinterInfo } from './core/types';
 
 // Export Windows constants (always exported, but only work on Windows)
 export {
