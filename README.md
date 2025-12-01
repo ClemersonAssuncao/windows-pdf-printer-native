@@ -9,7 +9,6 @@ A **high-performance**, **native Windows PDF printing library** for Node.js usin
 - 🎯 **Type-Safe Enums** - PrintQuality, PaperSize, DuplexMode, PageOrientation, ColorMode, PaperTray
 - 🏗️ **Clean Architecture** - SOLID principles, dependency injection, service-based design
 - 📦 **TypeScript First** - Full type safety with comprehensive interfaces and enums
-- 🔧 **Zero Dependencies** - Pure Windows API, no Ghostscript or external tools required
 - 🎨 **Full Control** - Quality, paper size, duplex, orientation, color, tray selection
 
 [![npm version](https://img.shields.io/npm/v/windows-pdf-printer-native.svg)](https://www.npmjs.com/package/windows-pdf-printer-native)
