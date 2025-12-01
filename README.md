@@ -58,31 +58,6 @@ A **high-performance**, **native Windows PDF printing library** for Node.js usin
 - **Capabilities Query** - Check duplex/color support, available paper sizes
 - **DEVMODE Configuration** - Direct Windows printer settings control
 
-## Architecture
-
-This library follows **Clean Architecture** principles:
-
-```
-src/
-├── core/
-│   ├── types/         # Domain types, enums (PrintQuality, PaperSize, etc.)
-│   └── interfaces/    # IPrinter, IPrinterManager contracts
-├── adapters/
-│   └── windows/
-│       ├── api/       # Windows API bindings (gdi32, winspool, pdfium)
-│       ├── services/  # PdfRenderService, DevModeConfigService
-│       └── *.adapter.ts  # Platform implementations
-└── factories/         # PrinterFactory for dependency injection
-```
-
-**Key Design Patterns:**
-- **Dependency Injection** - Services injected into adapters
-- **Factory Pattern** - Platform-specific instance creation
-- **Service Layer** - Specialized services (PDF rendering, DEVMODE config)
-- **Adapter Pattern** - Windows-specific implementations
-
-## Requirements
-
 ## Requirements
 
 - **Node.js 18.0.0 or higher**
@@ -385,25 +360,6 @@ interface PrinterCapabilities {
 - ✅ Smart bitmap lifecycle management prevents memory leaks
 - ✅ Page caching for multiple copies (render once, print many)
 
-### Debug Logging
-
-Enable detailed performance metrics:
-
-```bash
-# Windows (CMD)
-set DEBUG=1 && node your-script.js
-
-# Windows (PowerShell)
-$env:DEBUG=1; node your-script.js
-
-# Output example:
-[DEBUG] PDF service initialized in 125.43ms
-[DEBUG] PDF document loaded in 8.21ms
-[DEBUG] Render size: 2480x3508 at 300 DPI
-[DEBUG] Page 1/4 printed in 1387.52ms
-[DEBUG] printWithRawData() TOTAL TIME: 5515.33ms
-```
-
 ### Optimization Tips
 
 1. **Use MEDIUM quality (300 DPI)** for documents - perfect balance
@@ -510,50 +466,6 @@ printers.forEach(printer => {
     console.log(`  Color: ${capabilities.supportsColor}`);
   }
 });
-```
-
-## Running Examples
-
-```bash
-# List all printers
-node --experimental-strip-types examples/list-printers.ts
-
-# Simple print
-node --experimental-strip-types examples/simple-print.ts
-
-# Duplex printing
-node --experimental-strip-types examples/duplex-print.ts
-
-# Advanced printing
-node --experimental-strip-types examples/advanced-print.ts
-```
-
-Or use npm scripts:
-
-```bash
-npm run example:simple
-npm run example:duplex
-npm run example:advanced
-
-# Test DEVMODE configuration
-npm run example:test-devmode
-npm run example:monitor
-```
-
-## Testing DEVMODE Configuration
-
-To verify that print options (copies, duplex, paper size, etc.) are being applied correctly, see the comprehensive guide: **[TESTING-DEVMODE.md](TESTING-DEVMODE.md)**
-
-Quick test:
-```bash
-# Test simple print 
-npm run example:simple
-
-# Test advanced print
-npm run example:advanced
-
-# Monitor print spooler with detailed instructions
-npm run example:monitor
 ```
 
 ## Troubleshooting
@@ -671,17 +583,6 @@ npm run test:coverage
 # Run tests with verbose output
 npm run test:verbose
 ```
-
-### Test Coverage
-
-The test suite includes:
-
-- **Windows API Tests**: Validates Koffi bindings, structures, and constants
-- **GDI32 Tests**: Tests GDI printing functions
-- **PDFium Tests**: Tests PDF rendering with different DPI settings
-- **PrinterManager Tests**: Tests printer discovery, default printer, and capabilities
-- **PDFPrinter Tests**: Tests printing functionality with various options
-- **DEVMODE Tests**: Tests printer configuration and settings
 
 ## Contributing
 

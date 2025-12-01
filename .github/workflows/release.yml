@@ -64,14 +64,12 @@ jobs:
           ## Installation
           
           ```bash
-          npm install node-pdf-printer@${{ steps.tag_version.outputs.TAG_VERSION }}
+          npm install windows-pdf-printer-native@${{ steps.tag_version.outputs.TAG_VERSION }}
           ```
           
           ## Compatibility
           
           - Node.js: >=22.0.0
           - Windows: ✅
-          - Linux: ✅
-          - macOS: ✅
         draft: false
         prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
