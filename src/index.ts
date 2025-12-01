@@ -1,55 +1,38 @@
 // Clean Architecture Entry Point
 export * from './core/types';
 export * from './core/interfaces';
-export { PlatformDetector } from './services/platform-detector.service';
 export { PrinterFactory } from './factories/printer.factory';
+export { PrintQuality, PaperSize, DuplexMode, PageOrientation, ColorMode, PaperTray } from './core/types';
 
 // Re-export platform-specific implementations for backward compatibility
 export { WindowsPrinterManagerAdapter } from './adapters/windows/windows-printer-manager.adapter';
-export { UnixPrinterManagerAdapter } from './adapters/unix/unix-printer-manager.adapter';
 export { WindowsPrinterAdapter } from './adapters/windows/windows-printer.adapter';
-export { UnixPrinterAdapter } from './adapters/unix/unix-printer.adapter';
 
 // Export unified types for backward compatibility
 export type { PrintOptions as WindowsPrintOptions } from './core/types';
 export type { PrinterInfo as WindowsPrinterInfo, PrinterCapabilities as WindowsPrinterCapabilities } from './core/types';
-export type { PrintOptions as UnixPrintOptions, PrinterInfo as UnixPrinterInfo } from './core/types';
-
-// Export Windows constants (always exported, but only work on Windows)
-export {
-  DUPLEX_SIMPLEX,
-  DUPLEX_HORIZONTAL,
-  DUPLEX_VERTICAL,
-  PAPER_LETTER,
-  PAPER_LEGAL,
-  PAPER_A4,
-  PAPER_A3,
-  PAPER_TABLOID,
-  PRINT_QUALITY_HIGH,
-  PRINT_QUALITY_MEDIUM,
-  PRINT_QUALITY_LOW,
-  PRINT_QUALITY_DRAFT,
-  PORTRAIT,
-  LANDSCAPE,
-  MONOCHROME,
-  COLOR
-} from './adapters/windows/api/winspool.api';
 
 // Simple, clean facade API
 import type { PrintOptions, PrinterInfo } from './core/types';
 import { PrinterFactory } from './factories/printer.factory';
-import { PlatformDetector } from './services/platform-detector.service';
 
 /**
- * Cross-platform PDFPrinter - automatically uses correct implementation
- * 
- * Note: On Unix/Linux, printer validation is async. Use the static create() method
- * for validated printer creation, or validate manually before instantiation.
+ * Windows PDFPrinter with GDI and PDFium rendering
  * 
  * @example
  * ```typescript
+ * import { PDFPrinter, DuplexMode, PageOrientation, ColorMode, PaperSize, PrintQuality, PaperTray } from 'windows-pdf-printer-native';
+ * 
  * const printer = new PDFPrinter();
- * await printer.print('./document.pdf', { copies: 2, duplex: 'vertical' });
+ * await printer.print('./document.pdf', {
+ *   copies: 2,
+ *   duplex: DuplexMode.VERTICAL,
+ *   orientation: PageOrientation.LANDSCAPE,
+ *   color: ColorMode.COLOR,
+ *   paperSize: PaperSize.A4,
+ *   paperTray: PaperTray.AUTO,
+ *   quality: PrintQuality.MEDIUM
+ * });
  * 
  * // For validated creation:
  * const printer = await PDFPrinter.create('MyPrinter');
@@ -64,7 +47,7 @@ export class PDFPrinter {
   }
   
   /**
-   * Create a PDFPrinter with validation (async for Unix compatibility)
+   * Create a PDFPrinter with validation
    */
   static async create(printerName?: string): Promise<PDFPrinter> {
     // Validate printer exists if name provided
@@ -96,7 +79,7 @@ export class PDFPrinter {
 }
 
 /**
- * Cross-platform PrinterManager - automatically uses correct implementation
+ * Windows PrinterManager
  * 
  * @example
  * ```typescript
@@ -126,7 +109,7 @@ export class PrinterManager {
     return this.manager.getPrinterCapabilities(printerName);
   }
   
-  // Alias for Unix compatibility
+  // Alias method
   static listPrinters = PrinterManager.getAvailablePrinters;
 }
 
@@ -141,8 +124,4 @@ export async function getDefaultPrinter(): Promise<string | null> {
 
 export async function printerExists(printerName: string): Promise<boolean> {
   return PrinterManager.printerExists(printerName);
-}
-
-export function getPlatform(): 'windows' | 'unix' {
-  return PlatformDetector.getPlatform();
 }

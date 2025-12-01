@@ -10,10 +10,10 @@ if (!isWindows) {
 }
 
 // Import winApi once at module level to avoid re-importing in each test suite
-let winApi: typeof import('../src/adapters/windows/api/winspool.api');
+let winApi: typeof import('../src/adapters/windows/api/graphics-device-interface.api');
 if (isWindows) {
   // Use require to ensure single import (Jest caches require calls)
-  winApi = require('../src/adapters/windows/api/winspool.api');
+  winApi = require('../src/adapters/windows/api/graphics-device-interface.api');
 }
 
 describeWindows('Windows Print API', () => {

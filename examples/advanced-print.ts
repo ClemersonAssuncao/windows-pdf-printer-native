@@ -1,13 +1,22 @@
 // Advanced printing example with all options
 import { 
-  PDFPrinter, 
-  PAPER_A4, 
-  PAPER_LETTER,
-  PRINT_QUALITY_HIGH 
+  PDFPrinter,
+  PrinterManager,
+  PrintQuality,
+  PaperSize,
+  DuplexMode,
+  PageOrientation,
+  ColorMode,
+  PaperTray
 } from '../src/index';
 
 async function main() {
-  console.log('=== Node PDF Printer - Advanced Example ===\n');
+  console.log('=== Windows PDF Printer Native - Advanced Example ===\n');
+  
+  // List available printers
+  const printers = await PrinterManager.getAvailablePrinters();
+  console.log('Available printers:', printers.map(p => p.name).join(', '));
+  console.log();
   
   // You can specify a particular printer or use the default
   const printerName = "Microsoft Print to PDF"; // Set to specific printer name if needed
@@ -15,59 +24,69 @@ async function main() {
   
   console.log(`Using printer: ${printer.getPrinterName()}\n`);
   
-  const pdfPath = './test-document.pdf';
+  // Check if test PDF exists
+  const fs = await import('fs');
+  const pdfPath = './examples/test-document.pdf';
   
   // Advanced printing with all options
   console.log('Printing with advanced options:');
   console.log('  - Paper: A4');
-  console.log('  - Duplex: Vertical (long edge flip)');
+  console.log('  - Quality: HIGH (600 DPI)');
+  console.log('  - Duplex: VERTICAL (long edge flip)');
   console.log('  - Copies: 2');
   console.log('  - Orientation: Portrait');
-  console.log('  - Color: Yes');
-  console.log('  - Paper Source: Tray 1');
+  console.log('  - Color: Monochrome');
+  console.log('  - Paper Tray: Upper');
   console.log('  - Collate: Yes');
   console.log();
   
   try {
     await printer.print(pdfPath, {
       copies: 2,
-      duplex: 'vertical',
-      paperSize: PAPER_A4,
-      paperSource: 1, // 1 = Upper tray, 2 = Lower tray, 4 = Manual feed
-      orientation: 'portrait',
-      color: true,
-      quality: PRINT_QUALITY_HIGH,
+      duplex: DuplexMode.VERTICAL,
+      paperSize: PaperSize.A4,
+      paperTray: PaperTray.UPPER,
+      orientation: PageOrientation.PORTRAIT,
+      color: ColorMode.MONOCHROME,
+      quality: PrintQuality.HIGH,
       collate: true
     });
     console.log('✓ Advanced print job sent successfully!');
   } catch (error) {
-    console.error('✗ Print failed:', error.message);
+    console.error('✗ Print failed:', (error as Error).message);
     process.exit(1);
   }
   
-  // Example: Print to specific printer
-  console.log('\n--- Printing to specific printer ---');
+  // Example 2: Print with different quality settings
+  console.log('\n--- Example 2: Different Paper Sizes ---');
+  console.log('Printing on Letter size paper with LOW quality (150 DPI)...');
   try {
-    const specificPrinter = new PDFPrinter('Microsoft Print to PDF');
-    await specificPrinter.print(pdfPath, {
+    await printer.print(pdfPath, {
       copies: 1,
-      paperSize: PAPER_LETTER
+      paperSize: PaperSize.LETTER,
+      quality: PrintQuality.LOW,
+      orientation: PageOrientation.LANDSCAPE
     });
-    console.log('✓ Print to specific printer successful!');
+    console.log('✓ Print to Letter size successful!');
   } catch (error) {
-    console.error('✗ Could not print to specific printer:', error.message);
+    console.error('✗ Could not print:', (error as Error).message);
   }
   
-  // Example: Print raw data
-  console.log('\n--- Printing raw PCL/PostScript data ---');
+  // Example 3: Print raw buffer data
+  console.log('\n--- Example 3: Print from Buffer ---');
   try {
-    const rawData = Buffer.from('%PDF-1.4\n...');
+    const fs = await import('fs');
+    const rawData = fs.readFileSync(pdfPath);
+    console.log(`Printing ${rawData.length} bytes from buffer...`);
+    
     await printer.printRaw(rawData, 'Raw Document', {
-      paperSize: PAPER_A4
+      paperSize: PaperSize.A4,
+      quality: PrintQuality.MEDIUM,
+      duplex: DuplexMode.HORIZONTAL
     });
-    console.log('✓ Raw data print job sent successfully!');
+    console.log('✓ Raw buffer print job sent successfully!');
   } catch (error) {
-    console.error('✗ Raw print failed:', error.message);
+    console.error('✗ Raw print failed:', (error as Error).message);
   }
 }
 

@@ -1,438 +1,510 @@
-# Contributing to Node PDF Printer
+# Contributing to Windows PDF Printer Native
 
-Thank you for your interest in contributing to node-pdf-printer! This document provides guidelines and instructions for contributing.
+Thank you for your interest in contributing! This document provides guidelines and instructions for contributing to this project.
 
 ## Table of Contents
 
 - [Code of Conduct](#code-of-conduct)
+- [Getting Started](#getting-started)
 - [Development Setup](#development-setup)
 - [Project Structure](#project-structure)
-- [Development Workflow](#development-workflow)
-- [Coding Guidelines](#coding-guidelines)
+- [Coding Standards](#coding-standards)
 - [Testing](#testing)
 - [Submitting Changes](#submitting-changes)
 - [Reporting Issues](#reporting-issues)
 
 ## Code of Conduct
 
-Please be respectful and constructive in all interactions. We're building this together!
+This project follows a simple code of conduct:
+- Be respectful and professional
+- Provide constructive feedback
+- Focus on improving the codebase
+- Help others learn and grow
 
-## Development Setup
+## Getting Started
 
 ### Prerequisites
 
-- Node.js 22.0.0 or higher
-- Git
-- Platform-specific requirements:
-  - **Windows**: Visual Studio Build Tools (for Koffi compilation)
-  - **Linux**: build-essential, CUPS
-  - **macOS**: Xcode Command Line Tools, CUPS
+- **Node.js 18.0.0+**
+- **Windows 10/11** (for development and testing)
+- **Git**
+- **Visual Studio Code** (recommended)
+- **PDFium library** (pdfium.dll)
 
-### Setup Steps
+### Fork and Clone
 
-1. **Fork and clone the repository**
-   ```bash
-   git clone https://github.com/yourusername/node-pdf-printer.git
-   cd node-pdf-printer
-   ```
+1. Fork the repository on GitHub
+2. Clone your fork:
+```bash
+git clone https://github.com/YOUR_USERNAME/windows-pdf-printer-native.git
+cd windows-pdf-printer-native
+```
 
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
+3. Add upstream remote:
+```bash
+git remote add upstream https://github.com/ClemersonAssuncao/windows-pdf-printer-native.git
+```
 
-3. **Build the project**
-   ```bash
-   npm run build
-   ```
+## Development Setup
 
-4. **Run examples to verify setup**
-   ```bash
-   npm run example:list
-   npm run example:simple
-   ```
+### Install Dependencies
+
+```bash
+npm install
+```
+
+### PDFium Setup (Development)
+
+> **Note:** For end users, PDFium is already included in the npm package. This setup is only needed for contributors.
+
+**Option 1: PowerShell Script**
+```powershell
+.\install-pdfium.ps1
+```
+
+**Option 2: Manual**
+1. Download from [bblanchon/pdfium-binaries](https://github.com/bblanchon/pdfium-binaries/releases)
+2. Extract `pdfium.dll` to `bin/` folder
+
+### Build Project
+
+```bash
+npm run build
+```
+
+### Run Examples
+
+```bash
+# Simple example
+npm run example:simple
+
+# Advanced example
+npm run example:advanced
+
+# Quality example
+npm run example:quality
+```
+
+### Enable Debug Logging
+
+```bash
+# Windows CMD
+set DEBUG=1 && npm run example:simple
+
+# PowerShell
+$env:DEBUG=1; npm run example:simple
+```
 
 ## Project Structure
 
 ```
-node-pdf-printer/
+windows-pdf-printer-native/
 ├── src/
-│   ├── core/                          # 🎯 Domain layer (platform-agnostic)
-│   │   ├── types/
-│   │   │   └── index.ts               # PrintOptions, PrinterInfo, PrinterCapabilities
-│   │   └── interfaces/
-│   │       └── index.ts               # IPrinter, IPrinterManager (contracts)
+│   ├── core/                    # Domain layer (platform-agnostic)
+│   │   ├── types/               # Enums and interfaces
+│   │   │   └── index.ts         # PrintQuality, PaperSize, DuplexMode, etc.
+│   │   └── interfaces/          # Contracts (IPrinter, IPrinterManager)
+│   │       └── index.ts
 │   │
-│   ├── adapters/                      # 🔌 Platform-specific implementations
+│   ├── adapters/                # Infrastructure layer (platform-specific)
 │   │   └── windows/
-│   │       ├── api/
-│   │       │   └── winspool.api.ts   # Windows API bindings (Koffi FFI)
-│   │       └── windows-printer-manager.adapter.ts  # Windows IPrinterManager impl
+│   │       ├── api/             # Windows API bindings
+│   │       │   ├── gdi32.api.ts        # GDI32.dll functions
+│   │       │   ├── winspool.api.ts     # Winspool.drv functions
+│   │       │   ├── kernel32.api.ts     # Kernel32.dll functions
+│   │       │   ├── pdfium.api.ts       # PDFium bindings
+│   │       │   └── index.ts            # Barrel exports
+│   │       │
+│   │       ├── services/        # Specialized services
+│   │       │   ├── pdf-render.service.ts        # PDFium rendering
+│   │       │   ├── devmode-config.service.ts    # DEVMODE configuration
+│   │       │   └── printer-connection.service.ts # Printer connection
+│   │       │
+│   │       ├── windows-printer.adapter.ts        # IPrinter implementation
+│   │       └── windows-printer-manager.adapter.ts # IPrinterManager implementation
 │   │
-│   ├── services/                      # 🛠️ Utility services
-│   │   └── platform-detector.service.ts  # Platform detection (Windows/Unix)
+│   ├── factories/               # Factory pattern
+│   │   └── printer.factory.ts   # Creates platform-specific instances
 │   │
-│   ├── factories/                     # 🏭 Factory pattern
-│   │   └── printer.factory.ts        # Creates platform-specific instances
+│   ├── services/                # Application services
+│   │   └── platform-detector.service.ts
 │   │
-│   ├── index.ts                       # 📦 Main entry point (public API)
-│   ├── pdf-printer.ts                 # Windows PDF printer implementation
-│   ├── printer-manager.ts             # Windows printer manager
-│   └── unix-printer.ts                # Unix/Linux/macOS implementation
+│   └── index.ts                 # Public API exports
 │
-├── examples/
-│   ├── simple-print.ts                # Basic printing example
-│   ├── duplex-print.ts                # Duplex printing examples
-│   ├── advanced-print.ts              # Advanced options example
-│   ├── list-printers.ts               # List available printers
-│   ├── test-devmode.ts                # Test DEVMODE configuration
-│   ├── inspect-devmode.ts             # Inspect DEVMODE settings
-│   └── unix-print.ts                  # Unix-specific example
-│
-├── tests/                             # 🧪 Test suite
-│   ├── windows-print-api.test.ts      # Windows API tests
-│   ├── printer-manager.test.ts        # Printer manager tests
-│   ├── pdf-printer.test.ts            # PDF printer tests
-│   ├── unix-printer.test.ts           # Unix printer tests
-│   └── cross-platform.test.ts         # Cross-platform tests
-│
-├── docs/
-│   ├── TESTING-DEVMODE.md             # DEVMODE testing guide
-│   ├── CLEAN-ARCHITECTURE.md          # Architecture documentation
-│   └── GET-PRINTJOB-VS-DEVMODE.md     # PowerShell vs DEVMODE explanation
-│
-├── lib/                               # Compiled JavaScript output
-├── README.md                          # Main documentation
-├── CONTRIBUTING.md                    # This file
-├── CHANGELOG.md                       # Version history
-└── package.json                       # Package configuration
+├── bin/                         # Native binaries
+│   └── pdfium.dll               # PDFium library (included in npm package)
+├── examples/                    # Usage examples
+├── tests/                       # Unit and integration tests
+└── lib/                         # Compiled output (generated)
 ```
 
-### Architecture Overview
+### Architecture Principles
 
-This project follows **Clean Architecture** principles:
+This project follows **Clean Architecture** (Hexagonal Architecture):
 
-**Core Layer** (`src/core/`)
-- Platform-agnostic domain types and interfaces
-- No external dependencies
-- Defines contracts that all implementations must follow
+1. **Core Layer (Domain)**
+   - Contains business logic, types, and interfaces
+   - No external dependencies
+   - Platform-agnostic
 
-**Adapters Layer** (`src/adapters/`)
-- Platform-specific implementations (Windows, Unix)
-- Windows: Uses Koffi FFI for native winspool.drv API calls
-- Unix: Uses CUPS via child_process
+2. **Adapters Layer (Infrastructure)**
+   - Windows-specific implementations
+   - API bindings (GDI32, Winspool, PDFium)
+   - Service implementations
 
-**Services Layer** (`src/services/`)
-- Utility services like platform detection
-- Reusable across different adapters
+3. **Factories**
+   - Creates platform-specific instances
+   - Dependency injection
 
-**Factories Layer** (`src/factories/`)
-- Factory pattern for creating platform-specific instances
-- Implements dependency injection
+4. **Public API**
+   - Clean, user-friendly facade
+   - Backward compatibility
 
-**Public API** (`src/index.ts`)
-- Simple, clean facade API
-- Maintains backward compatibility
-- Exports both legacy and new architecture APIs
+## Coding Standards
 
-See [CLEAN-ARCHITECTURE.md](CLEAN-ARCHITECTURE.md) for detailed architecture documentation.
+### TypeScript Guidelines
 
-## Development Workflow
-
-### Making Changes
-
-1. **Create a feature branch**
-   ```bash
-   git checkout -b feature/your-feature-name
+1. **Strict TypeScript**
+   ```json
+   {
+     "strict": true,
+     "noImplicitAny": true,
+     "strictNullChecks": true
+   }
    ```
 
-2. **Make your changes**
-   - Write clean, documented code
-   - Follow existing code style and patterns
-   - Update TypeScript types as needed
+2. **Naming Conventions**
+   - Classes: `PascalCase` (e.g., `WindowsPrinterAdapter`)
+   - Interfaces: `PascalCase` with `I` prefix (e.g., `IPrinter`)
+   - Enums: `PascalCase` (e.g., `PrintQuality`)
+   - Enum members: `UPPER_CASE` (e.g., `MEDIUM`)
+   - Functions/Methods: `camelCase` (e.g., `printPdfPage()`)
+   - Constants: `UPPER_CASE` (e.g., `DM_ORIENTATION`)
+   - Private fields: prefix with `_` or use TypeScript `private`
 
-3. **Test your changes**
-   ```bash
-   npm run build
-   npm run example:simple
-   # Test on your target platform(s)
-   ```
+3. **File Naming**
+   - Services: `*.service.ts`
+   - Adapters: `*.adapter.ts`
+   - APIs: `*.api.ts`
+   - Interfaces: `index.ts` in `interfaces/` folder
+   - Types: `index.ts` in `types/` folder
 
-4. **Commit your changes**
-   ```bash
-   git add .
-   git commit -m "feat: add your feature description"
-   ```
-
-### Commit Message Format
-
-Use conventional commit messages:
-- `feat:` - New feature
-- `fix:` - Bug fix
-- `docs:` - Documentation changes
-- `refactor:` - Code refactoring
-- `test:` - Adding tests
-- `chore:` - Maintenance tasks
-
-Examples:
-```
-feat: add support for custom paper sizes on Unix
-fix: resolve duplex printing issue on Windows 11
-docs: update API reference for PrintOptions
-```
-
-## Coding Guidelines
-
-### TypeScript
-
-- Use TypeScript for all source code
-- Provide explicit types for public APIs
-- Use interfaces for object shapes
-- Export types alongside implementations
+4. **Code Organization**
+   - One class per file
+   - Related types in same file
+   - Barrel exports (`index.ts`) for clean imports
 
 ### Code Style
 
-- Use 2 spaces for indentation
-- Use single quotes for strings
-- Add JSDoc comments for public methods
-- Keep functions focused and small
-- Prefer async/await over callbacks
+- **Indentation:** 2 spaces
+- **Line Length:** Max 120 characters
+- **Quotes:** Single quotes for strings
+- **Semicolons:** Always use
+- **Trailing Commas:** Yes (for multiline)
 
-### Example of well-documented code:
+### Documentation
+
+1. **JSDoc Comments**
+   ```typescript
+   /**
+    * Render a PDF page to bitmap using PDFium
+    * @param pdfDoc - PDFium document handle
+    * @param pageIndex - Zero-based page index
+    * @param options - Rendering options
+    * @returns Rendered page with buffer and metadata
+    */
+   renderPage(pdfDoc: any, pageIndex: number, options: RenderOptions): RenderedPage {
+     // Implementation
+   }
+   ```
+
+2. **Inline Comments**
+   - Explain WHY, not WHAT
+   - Focus on complex logic
+   - Keep comments up-to-date
+
+3. **README Updates**
+   - Update docs for API changes
+   - Add examples for new features
+   - Update performance benchmarks
+
+### Error Handling
 
 ```typescript
-/**
- * Print a PDF file with specified options
- * @param pdfPath - Absolute or relative path to PDF file
- * @param options - Print configuration options
- * @throws {Error} If PDF file not found or print job fails
- * @example
- * ```typescript
- * await printer.print('./document.pdf', {
- *   copies: 2,
- *   duplex: 'vertical'
- * });
- * ```
- */
-async print(pdfPath: string, options: PrintOptions = {}): Promise<void> {
-  // Implementation
+// ✅ Good: Specific error messages with context
+if (!hDC) {
+  throw new Error(`Failed to create device context for printer: ${printerName}`);
 }
+
+// ✅ Good: Check return values and provide diagnostics
+const result = StartDocW(hDC, docInfo);
+if (result <= 0) {
+  throw new Error(`Failed to start document. Error: ${GetLastError()}`);
+}
+
+// ❌ Bad: Generic errors
+throw new Error('Print failed');
 ```
 
-### Platform-Specific Code
+### Performance Considerations
 
-- Check platform at runtime: `os.platform() === 'win32'`
-- Keep Windows and Unix code separated
-- Provide unified APIs in `index.ts`
-- Document platform-specific limitations
+1. **Memory Management**
+   - Clean up resources in `finally` blocks
+   - Use reference counting for shared resources
+   - Destroy PDFium bitmaps after use
+
+2. **Caching**
+   - Cache rendered pages for multiple copies
+   - Reuse singleton PDFium instance
+   - Clean cache when done
+
+3. **Debug Logging**
+   - Use `process.env.DEBUG` flag
+   - Log performance metrics
+   - Include timing information
 
 ## Testing
 
-### Automated Testing
-
-This project includes a comprehensive test suite with 73+ tests:
+### Run Tests
 
 ```bash
 # Run all tests
 npm test
 
-# Run tests in watch mode (for development)
-npm run test:watch
-
-# Run tests with coverage report
+# Run with coverage
 npm run test:coverage
 
 # Run specific test file
 npm test -- windows-print-api.test.ts
 ```
 
-**Test Coverage:**
-- ✅ Windows API bindings (Koffi structures, constants, functions)
-- ✅ Printer Manager (list printers, default printer, capabilities)
-- ✅ PDF Printer (print, printRaw, options handling)
-- ✅ Unix Printer (CUPS integration) - skipped on Windows
-- ✅ Cross-platform compatibility
-- ✅ Error handling and edge cases
+### Writing Tests
+
+1. **Unit Tests**
+   ```typescript
+   describe('PdfRenderService', () => {
+     it('should initialize PDFium library', async () => {
+       const service = new PdfRenderService();
+       await service.initialize();
+       expect(service.isInitialized()).toBe(true);
+     });
+   });
+   ```
+
+2. **Integration Tests**
+   - Test real printer operations
+   - Test with actual PDF files
+   - Verify print job creation
+
+3. **Test Coverage**
+   - Aim for >80% coverage
+   - Focus on critical paths
+   - Test error scenarios
 
 ### Manual Testing
 
-Before submitting a PR, test on available platforms:
-
-**1. Windows Testing**
 ```bash
-# Build project
-npm run build
+# Test with different quality levels
+npm run example:quality
 
-# List printers
-npm run example:list
-
-# Test basic printing
-npm run example:simple
-
-# Test duplex printing
-npm run example:duplex
-
-# Test advanced options
+# Test with different paper sizes
 npm run example:advanced
 
-# Verify DEVMODE configuration
-npm run example:inspect-devmode
-npm run example:test-devmode
+# Monitor performance
+$env:DEBUG=1; npm run example:simple
 ```
-
-**2. Unix/Linux/macOS Testing**
-```bash
-# Ensure CUPS is running
-systemctl status cups  # Linux
-# or
-open "http://localhost:631"  # macOS
-
-# Run tests
-npm run example:unix
-npm run example:simple
-npm run example:list
-```
-
-**3. DEVMODE Verification (Windows)**
-
-To verify print settings are correctly applied:
-
-```bash
-# Method 1: Inspect DEVMODE directly (RECOMMENDED)
-npm run example:inspect-devmode
-
-# Method 2: Test with print job monitoring
-npm run example:test-devmode
-
-# Method 3: Monitor print spooler
-npm run example:monitor
-```
-
-See [TESTING-DEVMODE.md](TESTING-DEVMODE.md) for detailed instructions.
-
-**4. Cross-Platform Testing**
-- Test with different printers (physical and virtual)
-- Test with various PDF files (small, large, complex)
-- Test with Microsoft Print to PDF (Windows)
-- Test with CUPS-PDF (Linux)
-- Verify error handling with:
-  - Non-existent printers
-  - Invalid file paths
-  - Corrupted PDF files
-  - Invalid print options
-
-### Test Checklist
-
-Before submitting a PR, ensure:
-
-**Code Quality:**
-- [ ] Code compiles without errors: `npm run build`
-- [ ] No TypeScript type errors
-- [ ] All automated tests pass: `npm test`
-- [ ] Code follows existing style and patterns
-- [ ] JSDoc comments added for public APIs
-
-**Functionality:**
-- [ ] All examples run successfully
-- [ ] Works with default printer
-- [ ] Works with named printer
-- [ ] Print options are correctly applied (verify DEVMODE on Windows)
-- [ ] Error messages are clear and helpful
-- [ ] Handles edge cases gracefully
-
-**Documentation:**
-- [ ] README.md updated if adding features
-- [ ] CHANGELOG.md updated with changes
-- [ ] Code comments explain complex logic
-- [ ] Examples added for new features
-
-**Architecture:**
-- [ ] Follows Clean Architecture principles
-- [ ] Platform-specific code in appropriate adapters
-- [ ] Interfaces used for contracts
-- [ ] No breaking changes to public API (unless major version)
-- [ ] Backward compatibility maintained
 
 ## Submitting Changes
 
+### Branching Strategy
+
+1. **Create Feature Branch**
+   ```bash
+   git checkout -b feature/my-new-feature
+   # or
+   git checkout -b fix/bug-description
+   ```
+
+2. **Branch Naming**
+   - `feature/` - New features
+   - `fix/` - Bug fixes
+   - `docs/` - Documentation updates
+   - `refactor/` - Code refactoring
+   - `perf/` - Performance improvements
+
+### Commit Messages
+
+Follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+type(scope): subject
+
+body (optional)
+
+footer (optional)
+```
+
+**Examples:**
+```bash
+feat(api): add PaperTray enum for tray selection
+
+fix(rendering): prevent memory leak in bitmap lifecycle
+
+docs(readme): update installation instructions for PDFium
+
+perf(rendering): optimize 300 DPI rendering (44% faster)
+
+refactor(services): extract DevModeConfigService from adapter
+```
+
+**Types:**
+- `feat` - New feature
+- `fix` - Bug fix
+- `docs` - Documentation
+- `style` - Formatting
+- `refactor` - Code restructuring
+- `perf` - Performance
+- `test` - Tests
+- `chore` - Maintenance
+
 ### Pull Request Process
 
-1. **Update documentation**
-   - Update README.md if adding features
-   - Add entries to CHANGELOG.md
-   - Update code comments
-
-2. **Push your branch**
+1. **Update Your Branch**
    ```bash
-   git push origin feature/your-feature-name
+   git fetch upstream
+   git rebase upstream/main
+   ```
+
+2. **Run Tests**
+   ```bash
+   npm run build
+   npm test
    ```
 
 3. **Create Pull Request**
-   - Go to GitHub and create a PR
-   - Fill in the PR template
-   - Link any related issues
-   - Request review from maintainers
+   - Clear title and description
+   - Reference related issues
+   - Include screenshots/logs if applicable
+   - Update CHANGELOG.md
 
-### Pull Request Template
+4. **PR Template**
+   ```markdown
+   ## Description
+   Brief description of changes
 
-```markdown
-## Description
-Brief description of changes
+   ## Type of Change
+   - [ ] Bug fix
+   - [ ] New feature
+   - [ ] Breaking change
+   - [ ] Documentation update
 
-## Type of Change
-- [ ] Bug fix
-- [ ] New feature
-- [ ] Documentation update
-- [ ] Refactoring
+   ## Testing
+   - [ ] Unit tests pass
+   - [ ] Manual testing completed
+   - [ ] Performance impact assessed
 
-## Testing
-- [ ] Tested on Windows
-- [ ] Tested on Linux
-- [ ] Tested on macOS
-- [ ] All examples run successfully
+   ## Checklist
+   - [ ] Code follows project style
+   - [ ] Comments added for complex logic
+   - [ ] Documentation updated
+   - [ ] CHANGELOG.md updated
+   ```
 
-## Checklist
-- [ ] Code follows project style guidelines
-- [ ] Documentation has been updated
-- [ ] CHANGELOG.md has been updated
-```
+5. **Code Review**
+   - Address feedback promptly
+   - Be open to suggestions
+   - Explain your decisions
 
 ## Reporting Issues
 
 ### Bug Reports
 
-When reporting bugs, please include:
-
-1. **Environment Information**
-   - Node.js version: `node --version`
-   - OS and version
-   - Package version
-   - Printer model and driver
-
-2. **Steps to Reproduce**
-   - Minimal code example
-   - Clear step-by-step instructions
-   - Expected behavior
-   - Actual behavior
-
-3. **Additional Context**
-   - Error messages and stack traces
-   - Screenshots if applicable
-   - Relevant logs
+Include:
+- **Environment:** Windows version, Node.js version
+- **Steps to Reproduce:** Minimal reproducible example
+- **Expected Behavior:** What should happen
+- **Actual Behavior:** What actually happens
+- **Logs:** Debug logs (`DEBUG=1`)
+- **Code Sample:** Minimal code that reproduces issue
 
 ### Feature Requests
 
-For feature requests, describe:
-- The problem you're trying to solve
-- Proposed solution
-- Alternative solutions considered
-- Platform compatibility considerations
+Include:
+- **Use Case:** Why is this needed?
+- **Proposed Solution:** How should it work?
+- **Alternatives:** Other approaches considered?
+- **Examples:** API design mockup
+
+### Questions
+
+- Check existing issues first
+- Search documentation
+- Provide context and code samples
+
+## Development Tips
+
+### Debugging
+
+1. **Enable Debug Logs**
+   ```bash
+   $env:DEBUG=1; node your-script.js
+   ```
+
+2. **VS Code Launch Configuration**
+   ```json
+   {
+     "type": "node",
+     "request": "launch",
+     "name": "Debug Example",
+     "program": "${workspaceFolder}/examples/simple-print.ts",
+     "env": { "DEBUG": "1" }
+   }
+   ```
+
+3. **Inspect DEVMODE**
+   ```bash
+   node examples/test-devmode.ts
+   ```
+
+### Common Issues
+
+1. **PDFium Not Found (Development)**
+   - Ensure `pdfium.dll` is in `bin/` folder
+   - Run `.\install-pdfium.ps1` to download it
+   - For end users: DLL is included in the npm package
+
+2. **Blank Pages**
+   - Check PDF is valid
+   - Verify printer is online
+   - Check print queue
+
+3. **Memory Issues**
+   - Reduce quality (DPI)
+   - Process large PDFs in batches
+   - Monitor with `DEBUG=1`
+
+## Release Process
+
+Maintainers only:
+
+1. Update version in `package.json`
+2. Update `CHANGELOG.md`
+3. Create git tag: `git tag v1.x.x`
+4. Push tag: `git push origin v1.x.x`
+5. Build: `npm run build`
+6. Publish: `npm publish`
+
+## Resources
+
+- [Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
+- [TypeScript Handbook](https://www.typescriptlang.org/docs/handbook/intro.html)
+- [Windows GDI Documentation](https://learn.microsoft.com/en-us/windows/win32/gdi/windows-gdi)
+- [PDFium Documentation](https://pdfium.googlesource.com/pdfium/)
 
 ## Questions?
 
-If you have questions about contributing:
-- Open a GitHub Discussion
-- Check existing issues for similar questions
-- Review the README.md for API documentation
+- Open an issue with the `question` label
+- Check existing documentation
+- Review examples in `examples/` folder
 
-Thank you for contributing to node-pdf-printer! 🎉
+Thank you for contributing! 🎉

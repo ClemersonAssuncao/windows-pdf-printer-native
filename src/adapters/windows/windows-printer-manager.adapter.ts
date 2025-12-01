@@ -1,23 +1,25 @@
 // Windows Printer Manager Adapter
 import type { IPrinterManager } from '../../core/interfaces';
-import type { PrinterInfo, PrinterCapabilities } from '../../core/types';
+import { type PrinterInfo, type PrinterCapabilities, PaperSize } from '../../core/types';
 import {
-  OpenPrinterW,
-  ClosePrinter,
   EnumPrintersW,
   GetDefaultPrinterW,
   DocumentPropertiesW,
   PRINTER_ENUM_LOCAL,
   PRINTER_ENUM_CONNECTIONS,
   PRINTER_INFO_2W,
-  PRINTER_ACCESS_USE,
-  PRINTER_DEFAULTS,
   DM_IN_BUFFER,
   DM_OUT_BUFFER
-} from './api/winspool.api';
+} from './api';
+import { PrinterConnectionService } from './services/printer-connection.service';
 import koffi from 'koffi';
 
 export class WindowsPrinterManagerAdapter implements IPrinterManager {
+  private connectionService: PrinterConnectionService;
+  
+  constructor() {
+    this.connectionService = new PrinterConnectionService();
+  }
   getAvailablePrinters(): PrinterInfo[] {
     const printers: PrinterInfo[] = [];
     const flags = PRINTER_ENUM_LOCAL | PRINTER_ENUM_CONNECTIONS;
@@ -86,10 +88,7 @@ export class WindowsPrinterManagerAdapter implements IPrinterManager {
   }
   
   getPrinterCapabilities(printerName: string): PrinterCapabilities | null {
-    const hPrinter = this.openPrinter(printerName);
-    if (!hPrinter) return null;
-    
-    try {
+    return this.connectionService.withPrinter(printerName, (hPrinter) => {
       const devMode = [{}];
       const result = DocumentPropertiesW(null, hPrinter, printerName, devMode, null, 0);
       
@@ -102,44 +101,8 @@ export class WindowsPrinterManagerAdapter implements IPrinterManager {
       return {
         supportsDuplex: dm.dmDuplex !== undefined && dm.dmDuplex > 0,
         supportsColor: dm.dmColor !== undefined && dm.dmColor > 1,
-        defaultPaperSize: dm.dmPaperSize || 9,
-        availablePaperSizes: [1, 5, 8, 9],
-        availablePaperSources: [1, 2, 3, 4]
+        defaultPaperSize: dm.dmPaperSize || PaperSize.A4
       };
-    } finally {
-      this.closePrinter(hPrinter);
-    }
-  }
-  
-  openPrinter(printerName: string): any {
-    const hPrinter = [null];
-    
-    if (!OpenPrinterW(printerName, hPrinter, null)) {
-      throw new Error(`Failed to open printer: ${printerName}`);
-    }
-    
-    return hPrinter[0];
-  }
-  
-  openPrinterWithDevMode(printerName: string, devMode: any): any {
-    const hPrinter = [null];
-    
-    const printerDefaults = {
-      pDatatype: null,
-      pDevMode: devMode,
-      DesiredAccess: PRINTER_ACCESS_USE
-    };
-    
-    if (!OpenPrinterW(printerName, hPrinter, printerDefaults)) {
-      throw new Error(`Failed to open printer with DEVMODE: ${printerName}`);
-    }
-    
-    return hPrinter[0];
-  }
-  
-  closePrinter(hPrinter: any): void {
-    if (hPrinter) {
-      ClosePrinter(hPrinter);
-    }
+    });
   }
 }
