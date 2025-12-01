@@ -458,7 +458,7 @@ await printer.print('./document.pdf', {
 ### Print to Specific Printer
 
 ```typescript
-import { PDFPrinter } from 'node-pdf-printer';
+import { PDFPrinter } from 'windows-pdf-printer-native';
 
 const printer = new PDFPrinter('HP LaserJet Pro');
 await printer.print('./document.pdf', {
@@ -470,18 +470,26 @@ await printer.print('./document.pdf', {
 ### Advanced Configuration
 
 ```typescript
-import { PDFPrinter, PAPER_A4, PRINT_QUALITY_HIGH } from 'node-pdf-printer';
+import { 
+  PDFPrinter,
+  PrintQuality,
+  PaperSize,
+  DuplexMode,
+  PageOrientation,
+  ColorMode,
+  PaperTray
+} from 'windows-pdf-printer-native';
 
 const printer = new PDFPrinter();
 
 await printer.print('./document.pdf', {
   copies: 3,
-  duplex: 'vertical',
-  paperSize: PAPER_A4,
-  paperSource: 2,        // Lower tray
-  orientation: 'portrait',
-  color: true,
-  quality: PRINT_QUALITY_HIGH,
+  duplex: DuplexMode.VERTICAL,
+  paperSize: PaperSize.A4,
+  paperTray: PaperTray.LOWER,
+  orientation: PageOrientation.PORTRAIT,
+  color: ColorMode.COLOR,
+  quality: PrintQuality.HIGH,
   collate: true
 });
 ```
@@ -489,9 +497,9 @@ await printer.print('./document.pdf', {
 ### List All Printers
 
 ```typescript
-import { listPrinters, PrinterManager } from 'node-pdf-printer';
+import { PrinterManager } from 'windows-pdf-printer-native';
 
-const printers = listPrinters();
+const printers = await PrinterManager.getAvailablePrinters();
 
 printers.forEach(printer => {
   console.log(`${printer.name}${printer.isDefault ? ' (DEFAULT)' : ''}`);
@@ -694,9 +702,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Support
 
 - 📖 **Documentation**: Full API reference available in this README
-- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/yourusername/node-pdf-printer/issues)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/yourusername/node-pdf-printer/discussions)
-- 📧 **Email**: your.email@example.com
+- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/ClemersonAssuncao/windows-pdf-printer-native/issues)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/ClemersonAssuncao/windows-pdf-printer-native/discussions)
 
 ## Acknowledgments
 
