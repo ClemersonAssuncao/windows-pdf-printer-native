@@ -1,7 +1,7 @@
 {
   "name": "windows-pdf-printer-native",
-  "version": "1.0.2",
-  "description": "A Node.js library for printing PDF documents on Windows using native DLLs",
+  "version": "2.0.0",
+  "description": "High-performance Windows PDF printing library using GDI32 and PDFium",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "type": "module",
@@ -17,15 +17,12 @@
     "test:verbose": "jest --verbose",
     "dev": "tsx",
     "example:simple": "tsx examples/simple-print.ts",
-    "example:duplex": "tsx examples/duplex-print.ts",
     "example:advanced": "tsx examples/advanced-print.ts",
-    "example:list": "tsx examples/list-printers.ts",
-    "example:unix": "tsx examples/unix-print.ts",
-    "example:test-devmode": "tsx examples/test-devmode.ts",
-    "example:monitor": "tsx examples/monitor-printers.ts"
+    "example:list": "tsx examples/list-printers.ts"
   },
   "files": [
     "lib/**/*",
+    "bin/**/*",
     "README.md",
     "LICENSE"
   ],
@@ -65,8 +62,6 @@
     "typescript": "^5.9.3"
   },
   "os": [
-    "win32",
-    "linux",
-    "darwin"
+    "win32"
   ]
 }

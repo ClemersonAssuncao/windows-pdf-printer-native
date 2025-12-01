@@ -1,42 +1,38 @@
-// Windows Printer Adapter - implements IPrinter interface
+// Windows Printer Adapter - implements IPrinter interface using GDI for printing
 import type { IPrinter } from '../../core/interfaces';
-import type { PrintOptions, PrinterCapabilities } from '../../core/types';
+import { PrintQuality, type PrintOptions, type PrinterCapabilities } from '../../core/types';
 import * as fs from 'fs';
 import * as path from 'path';
-import {
-  OpenPrinterW,
-  ClosePrinter,
-  StartDocPrinterW,
-  EndDocPrinter,
-  StartPagePrinter,
-  EndPagePrinter,
-  WritePrinter,
-  DocumentPropertiesW,
-  DM_IN_BUFFER,
-  DM_OUT_BUFFER,
-  DM_ORIENTATION,
-  DM_PAPERSIZE,
-  DM_COPIES,
-  DM_DUPLEX,
-  DM_COLOR,
-  DM_DEFAULTSOURCE,
-  DUPLEX_SIMPLEX,
-  DUPLEX_HORIZONTAL,
-  DUPLEX_VERTICAL,
-  PORTRAIT,
-  LANDSCAPE,
-  MONOCHROME,
-  COLOR as COLOR_MODE,
-  GetLastError,
-  PRINTER_ACCESS_USE,
-  PRINTER_DEFAULTS,
-  DOC_INFO_1W
-} from './api/winspool.api';
-import { WindowsPrinterManagerAdapter } from './windows-printer-manager.adapter';
 import koffi from 'koffi';
+import {
+  // GDI functions for printing
+  CreateDCW,
+  DeleteDC,
+  StartDocW,
+  EndDoc,
+  StartPage,
+  EndPage,
+  SetDIBitsToDevice,
+  StretchDIBits,
+  GetDeviceCaps,
+  HORZRES,
+  VERTRES,
+  LOGPIXELSX,
+  LOGPIXELSY,
+  BITMAPINFOHEADER,
+  BI_RGB,
+  DIB_RGB_COLORS,
+  SRCCOPY,
+  GetLastError
+} from './api';
+import { WindowsPrinterManagerAdapter } from './windows-printer-manager.adapter';
+import { PdfRenderService } from './services/pdf-render.service';
+import { DevModeConfigService } from './services/devmode-config.service';
 
 export class WindowsPrinterAdapter implements IPrinter {
   private printerName: string;
+  private pdfRenderService: PdfRenderService;
+  private devModeConfigService: DevModeConfigService;
   
   constructor(printerName?: string) {
     const manager = new WindowsPrinterManagerAdapter();
@@ -53,6 +49,10 @@ export class WindowsPrinterAdapter implements IPrinter {
       }
       this.printerName = defaultPrinter;
     }
+    
+    // Initialize services
+    this.pdfRenderService = new PdfRenderService();
+    this.devModeConfigService = new DevModeConfigService();
   }
   
   async print(pdfPath: string, options?: PrintOptions): Promise<void> {
@@ -68,55 +68,262 @@ export class WindowsPrinterAdapter implements IPrinter {
   
   async printRaw(data: Buffer, documentName: string = 'Document', options?: PrintOptions): Promise<void> {
     const printerName = options?.printer || this.printerName;
-    const hPrinter = this.openPrinter(printerName);
+    return this.printWithRawData(printerName, data, documentName, options);
+  }
+  
+  /**
+   * Print using GDI (Graphics Device Interface) with PDFium for PDF rendering
+   */
+  private async printWithRawData(
+    printerName: string,
+    data: Buffer,
+    documentName: string,
+    options?: PrintOptions
+  ): Promise<void> {
+    const startTime = performance.now();
+    if (process.env.DEBUG) console.log(`[DEBUG] printWithRawData() started for printer: ${printerName}`);
     
-    if (!hPrinter) {
-      throw new Error(`Failed to open printer: ${printerName}`);
-    }
+    // Initialize PDF rendering service
+    const initStart = performance.now();
+    await this.pdfRenderService.initialize();
+    const initTime = performance.now() - initStart;
+    if (process.env.DEBUG) console.log(`[DEBUG] PDF service initialized in ${initTime.toFixed(2)}ms`);
     
     try {
-      // Apply print settings if options provided
-      if (options && (options.copies || options.duplex || options.paperSize || 
-                      options.orientation || options.color !== undefined || options.paperSource)) {
-        this.applyPrintSettings(hPrinter, printerName, options);
-      }
-      
-      // Start document
-      const docInfo = {
-        pDocName: documentName,
-        pOutputFile: null,
-        pDatatype: 'RAW'
-      };
-      
-      const jobId = StartDocPrinterW(hPrinter, 1, docInfo);
-      if (jobId === 0) {
-        throw new Error(`Failed to start document. Error: ${GetLastError()}`);
-      }
+      // Load PDF document
+      const loadDocStart = performance.now();
+      const pdfDoc = this.pdfRenderService.loadDocument(data);
+      const loadDocTime = performance.now() - loadDocStart;
+      if (process.env.DEBUG) console.log(`[DEBUG] PDF document loaded in ${loadDocTime.toFixed(2)}ms`);
       
       try {
-        // Start page
-        if (!StartPagePrinter(hPrinter)) {
-          throw new Error(`Failed to start page. Error: ${GetLastError()}`);
+        // Get page count
+        const pageCount = this.pdfRenderService.getPageCount(pdfDoc);
+        if (process.env.DEBUG) console.log(`[DEBUG] PDF has ${pageCount} page(s)`);
+        
+        // Get DEVMODE settings
+        const devModeStart = performance.now();
+        const devMode = this.devModeConfigService.getDevModeWithSettings(printerName, options);
+        const devModeTime = performance.now() - devModeStart;
+        if (process.env.DEBUG) console.log(`[DEBUG] DEVMODE configured in ${devModeTime.toFixed(2)}ms`);
+        
+        // Create Device Context for the printer
+        const dcStart = performance.now();
+        const hDC = CreateDCW(null, printerName, null, devMode);
+        if (!hDC) {
+          throw new Error(`Failed to create device context for printer: ${printerName}`);
         }
+        const dcTime = performance.now() - dcStart;
+        if (process.env.DEBUG) console.log(`[DEBUG] Device Context created in ${dcTime.toFixed(2)}ms`);
         
         try {
-          // Write data
-          const bytesWritten = [0];
-          if (!WritePrinter(hPrinter, data, data.length, bytesWritten)) {
-            throw new Error(`Failed to write to printer. Error: ${GetLastError()}`);
-          }
+          // Prepare document info
+          const docInfo = {
+            cbSize: 20,
+            lpszDocName: documentName,
+            lpszOutput: null,
+            lpszDatatype: null,
+            fwType: 0
+          };
           
-          if (bytesWritten[0] !== data.length) {
-            throw new Error(`Incomplete write: ${bytesWritten[0]} of ${data.length} bytes written`);
+          // Start document
+          const startDocBegin = performance.now();
+          const jobId = StartDocW(hDC, docInfo);
+          if (jobId <= 0) {
+            throw new Error(`Failed to start document. Error: ${GetLastError()}`);
+          }
+          const startDocTime = performance.now() - startDocBegin;
+          if (process.env.DEBUG) console.log(`[DEBUG] Document started (jobId: ${jobId}) in ${startDocTime.toFixed(2)}ms`);
+          
+          try {
+            const copies = options?.copies || 1;
+            
+            // Get printer resolution
+            const printerWidth = GetDeviceCaps(hDC, HORZRES);
+            const printerHeight = GetDeviceCaps(hDC, VERTRES);
+            const printerDpiX = GetDeviceCaps(hDC, LOGPIXELSX);
+            const printerDpiY = GetDeviceCaps(hDC, LOGPIXELSY);
+            
+            // Use user-specified quality or default to 300 DPI (MEDIUM)
+            const renderDpi = options?.quality || PrintQuality.MEDIUM;
+            if (process.env.DEBUG) console.log(`[DEBUG] Using render quality: ${renderDpi} DPI (printer DPI: ${printerDpiX}x${printerDpiY})`);
+            
+            // Print each copy
+            for (let copy = 0; copy < copies; copy++) {
+              const copyStart = performance.now();
+              if (process.env.DEBUG) console.log(`[DEBUG] Starting copy ${copy + 1}/${copies}`);
+              
+              // Print each page
+              for (let pageIndex = 0; pageIndex < pageCount; pageIndex++) {
+                const pageStart = performance.now();
+                await this.printPdfPage(
+                  hDC,
+                  pdfDoc,
+                  pageIndex,
+                  printerWidth,
+                  printerHeight,
+                  renderDpi,
+                  printerDpiX,
+                  printerDpiY
+                );
+                const pageTime = performance.now() - pageStart;
+                if (process.env.DEBUG) console.log(`[DEBUG] Page ${pageIndex + 1}/${pageCount} printed in ${pageTime.toFixed(2)}ms`);
+              }
+              
+              const copyTime = performance.now() - copyStart;
+              if (process.env.DEBUG) console.log(`[DEBUG] Copy ${copy + 1}/${copies} completed in ${copyTime.toFixed(2)}ms`);
+            }
+            
+          } finally {
+            // End the document
+            const endDocStart = performance.now();
+            const endDocResult = EndDoc(hDC);
+            if (endDocResult <= 0) {
+              throw new Error(`Failed to end document. Error: ${GetLastError()}`);
+            }
+            const endDocTime = performance.now() - endDocStart;
+            if (process.env.DEBUG) console.log(`[DEBUG] Document ended in ${endDocTime.toFixed(2)}ms`);
           }
         } finally {
-          EndPagePrinter(hPrinter);
+          // Clean up device context
+          DeleteDC(hDC);
         }
       } finally {
-        EndDocPrinter(hPrinter);
+        // Close PDF document
+        const closeDocStart = performance.now();
+        this.pdfRenderService.closeDocument(pdfDoc);
+        const closeDocTime = performance.now() - closeDocStart;
+        if (process.env.DEBUG) console.log(`[DEBUG] PDF document closed in ${closeDocTime.toFixed(2)}ms`);
       }
     } finally {
-      ClosePrinter(hPrinter);
+      // Cleanup PDFium
+      const cleanupStart = performance.now();
+      this.pdfRenderService.cleanup();
+      const cleanupTime = performance.now() - cleanupStart;
+      if (process.env.DEBUG) console.log(`[DEBUG] PDFium cleanup in ${cleanupTime.toFixed(2)}ms`);
+      
+      const totalTime = performance.now() - startTime;
+      if (process.env.DEBUG) console.log(`[DEBUG] printWithRawData() TOTAL TIME: ${totalTime.toFixed(2)}ms`);
+    }
+  }
+  
+  /**
+   * Print a single PDF page using PDFium and GDI
+   */
+  private async printPdfPage(
+    hDC: any,
+    pdfDoc: any,
+    pageIndex: number,
+    printerWidth: number,
+    printerHeight: number,
+    renderDpi: number,
+    printerDpiX: number,
+    printerDpiY: number
+  ): Promise<void> {
+    const pageStart = performance.now();
+    
+    // Calculate render size based on DPI
+    // A4 paper size in inches: 8.27 x 11.69
+    const pageWidthInches = printerWidth / printerDpiX;
+    const pageHeightInches = printerHeight / printerDpiY;
+    const renderWidth = Math.floor(pageWidthInches * renderDpi);
+    const renderHeight = Math.floor(pageHeightInches * renderDpi);
+    
+    if (process.env.DEBUG) console.log(`[DEBUG] Render size: ${renderWidth}x${renderHeight} at ${renderDpi} DPI (printer: ${printerWidth}x${printerHeight} at ${printerDpiX} DPI)`);
+    
+    // Render PDF page to bitmap using service
+    const renderStart = performance.now();
+    const renderedPage = this.pdfRenderService.renderPage(pdfDoc, pageIndex, {
+      width: renderWidth,
+      height: renderHeight,
+      maintainAspectRatio: true,
+      backgroundColor: 0xFFFFFFFF
+    });
+    const renderTime = performance.now() - renderStart;
+    if (process.env.DEBUG) console.log(`[DEBUG] printPdfPage() - render completed in ${renderTime.toFixed(2)}ms`);
+    
+    try {
+      // Start GDI page
+      const startPageBegin = performance.now();
+      const pageResult = StartPage(hDC);
+      if (pageResult <= 0) {
+        throw new Error(`Failed to start page. Error: ${GetLastError()}`);
+      }
+      const startPageTime = performance.now() - startPageBegin;
+      if (process.env.DEBUG) console.log(`[DEBUG] StartPage() in ${startPageTime.toFixed(2)}ms`);
+      
+      try {
+        // Prepare BITMAPINFOHEADER
+        const bmiData = {
+          biSize: 40,
+          biWidth: renderedPage.width,
+          biHeight: -renderedPage.height,  // Negative for top-down bitmap
+          biPlanes: 1,
+          biBitCount: 32,  // BGRA = 32 bits
+          biCompression: BI_RGB,
+          biSizeImage: renderedPage.stride * renderedPage.height,
+          biXPelsPerMeter: Math.floor(renderDpi * 39.37), // Convert DPI to pixels per meter
+          biYPelsPerMeter: Math.floor(renderDpi * 39.37),
+          biClrUsed: 0,
+          biClrImportant: 0
+        };
+        
+        // Convert to pointer
+        const bmi = [bmiData];
+        const bmiPtr = koffi.as(bmi, koffi.pointer(BITMAPINFOHEADER));
+        
+        // Scale rendered image to fit printer page maintaining aspect ratio
+        const scaleX = printerWidth / renderWidth;
+        const scaleY = printerHeight / renderHeight;
+        const scale = Math.min(scaleX, scaleY);
+        
+        const scaledWidth = Math.floor(renderWidth * scale);
+        const scaledHeight = Math.floor(renderHeight * scale);
+        
+        // Center the image on the page
+        const offsetX = Math.floor((printerWidth - scaledWidth) / 2);
+        const offsetY = Math.floor((printerHeight - scaledHeight) / 2);
+        
+        // Draw bitmap to printer DC using StretchDIBits for proper scaling
+        const drawStart = performance.now();
+        const result = StretchDIBits(
+          hDC,
+          offsetX,                // xDest
+          offsetY,                // yDest
+          scaledWidth,            // DestWidth
+          scaledHeight,           // DestHeight
+          0,                      // xSrc
+          0,                      // ySrc
+          renderedPage.width,     // SrcWidth
+          renderedPage.height,    // SrcHeight
+          renderedPage.buffer,    // lpBits
+          bmiPtr,                 // lpbmi
+          DIB_RGB_COLORS,         // iUsage
+          SRCCOPY                 // rop
+        );
+        const drawTime = performance.now() - drawStart;
+        if (process.env.DEBUG) console.log(`[DEBUG] StretchDIBits() in ${drawTime.toFixed(2)}ms (scaled ${renderWidth}x${renderHeight} to ${scaledWidth}x${scaledHeight})`);
+        
+        if (result === 0) {
+          throw new Error(`Failed to draw bitmap to printer. Error: ${GetLastError()}`);
+        }
+        
+      } finally {
+        // End the page
+        const endPageBegin = performance.now();
+        const endResult = EndPage(hDC);
+        if (endResult <= 0) {
+          throw new Error(`Failed to end page. Error: ${GetLastError()}`);
+        }
+        const endPageTime = performance.now() - endPageBegin;
+        if (process.env.DEBUG) console.log(`[DEBUG] EndPage() in ${endPageTime.toFixed(2)}ms`);
+        
+        const totalPageTime = performance.now() - pageStart;
+        if (process.env.DEBUG) console.log(`[DEBUG] printPdfPage() TOTAL: ${totalPageTime.toFixed(2)}ms`);
+      }
+    } finally {
+      // Cleanup rendered page bitmap
+      this.pdfRenderService.cleanupRenderedPage(renderedPage);
     }
   }
   
@@ -127,75 +334,5 @@ export class WindowsPrinterAdapter implements IPrinter {
   getCapabilities(): PrinterCapabilities | null {
     const manager = new WindowsPrinterManagerAdapter();
     return manager.getPrinterCapabilities(this.printerName);
-  }
-  
-  private openPrinter(printerName: string): any {
-    const hPrinter = [null];
-    const defaults = {
-      pDatatype: null,
-      pDevMode: null,
-      DesiredAccess: PRINTER_ACCESS_USE
-    };
-    
-    const success = OpenPrinterW(printerName, hPrinter, defaults);
-    
-    if (!success || !hPrinter[0]) {
-      return null;
-    }
-    
-    return hPrinter[0];
-  }
-  
-  private applyPrintSettings(hPrinter: any, printerName: string, options: PrintOptions): void {
-    const devMode = [{}];
-    const result = DocumentPropertiesW(null, hPrinter, printerName, devMode, null, 0);
-    
-    if (result < 0) {
-      console.warn('Failed to get DEVMODE, settings may not be applied');
-      return;
-    }
-    
-    const dm = devMode[0] as any;
-    let fieldsChanged = 0;
-    
-    if (options.copies !== undefined) {
-      dm.dmCopies = options.copies;
-      fieldsChanged |= DM_COPIES;
-    }
-    
-    if (options.duplex !== undefined) {
-      const duplexMap = {
-        'simplex': DUPLEX_SIMPLEX,
-        'horizontal': DUPLEX_HORIZONTAL,
-        'vertical': DUPLEX_VERTICAL
-      };
-      dm.dmDuplex = duplexMap[options.duplex];
-      fieldsChanged |= DM_DUPLEX;
-    }
-    
-    if (options.paperSize !== undefined && typeof options.paperSize === 'number') {
-      dm.dmPaperSize = options.paperSize;
-      fieldsChanged |= DM_PAPERSIZE;
-    }
-    
-    if (options.orientation !== undefined) {
-      dm.dmOrientation = options.orientation === 'landscape' ? LANDSCAPE : PORTRAIT;
-      fieldsChanged |= DM_ORIENTATION;
-    }
-    
-    if (options.color !== undefined) {
-      dm.dmColor = options.color ? COLOR_MODE : MONOCHROME;
-      fieldsChanged |= DM_COLOR;
-    }
-    
-    if (options.paperSource !== undefined) {
-      dm.dmDefaultSource = options.paperSource;
-      fieldsChanged |= DM_DEFAULTSOURCE;
-    }
-    
-    if (fieldsChanged > 0) {
-      dm.dmFields = fieldsChanged;
-      DocumentPropertiesW(null, hPrinter, printerName, devMode, devMode, DM_IN_BUFFER | DM_OUT_BUFFER);
-    }
   }
 }
