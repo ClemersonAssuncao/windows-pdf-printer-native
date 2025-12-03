@@ -5,6 +5,77 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.2] - 2025-12-03
+
+### 🔧 Fixed
+
+**DEVMODE Configuration - Critical Print Settings Fix**
+- Fixed `DocumentPropertiesW` workflow to properly apply print settings
+- Implemented correct 3-step DEVMODE configuration process:
+  1. Get DEVMODE size from printer driver
+  2. Retrieve current printer DEVMODE configuration
+  3. Apply modifications and validate with driver using `DM_IN_BUFFER | DM_OUT_BUFFER`
+- Fixed duplex mode configuration not being applied (SIMPLEX, HORIZONTAL, VERTICAL)
+- Fixed paper tray/source selection not being respected by printer driver
+- Added driver validation step that ensures settings are compatible with printer
+- Added automatic re-application of settings if driver modifies them during validation
+
+**Debug and Diagnostics**
+- Enhanced debug logging for DEVMODE configuration process
+- Added before/after validation comparison for `dmDefaultSource`
+- Added warning when driver changes requested settings
+- Added detailed field-by-field debug output for troubleshooting
+- Created `examples/test-paper-trays.ts` for discovering printer-specific tray codes
+- Created `examples/test-duplex.ts` for testing duplex configurations
+
+**HP Printer Compatibility**
+- Documented that HP printers use custom tray codes (256-260+) instead of Windows standard codes
+- Added support for printer-specific paper tray values
+- HP Universal Printing PCL 6 tested values:
+  - 256 = Tray 1
+  - 257 = Tray 2
+  - 258 = Tray 3
+  - 259 = Tray 4 (Manual Feed)
+  - 260 = Tray 5
+
+**Developer Experience**
+- Added npm scripts: `npm run example:trays` and `npm run example:duplex`
+- Improved error messages for DEVMODE configuration failures
+- Added validation warnings when driver doesn't support requested settings
+
+### 📚 Documentation
+
+**New Examples**
+- `examples/test-paper-trays.ts` - Automated discovery of available paper trays
+- `examples/test-duplex.ts` - Test different duplex printing modes
+- Added detailed comments explaining HP printer tray codes
+
+**Improved Documentation**
+- Updated PaperTray enum documentation with HP-specific values
+- Added troubleshooting section for print settings not being applied
+- Documented the correct DocumentPropertiesW workflow
+
+### 🏗️ Technical Changes
+
+**DevModeConfigService Improvements**
+- Refactored `getDevModeWithSettings()` method with proper error handling
+- Moved paper tray configuration before other settings (some drivers require specific order)
+- Added driver validation check and automatic re-application logic
+- Improved null safety and fallback to printer defaults
+- Better separation of concerns in DEVMODE configuration steps
+
+### ⚠️ Breaking Changes
+
+None - This is a bug fix release that maintains full API compatibility.
+
+### 🔄 Migration Notes
+
+No code changes required. If you were experiencing issues with duplex or paper tray settings not being applied, this release fixes those problems automatically.
+
+For HP printers, you may need to use custom tray codes (256-260) instead of standard Windows codes (1-15). Use the new `test-paper-trays.ts` example to discover your printer's tray codes.
+
+---
+
 ## [2.0.1] - 2025-12-01
 
 ### 🔧 Fixed
