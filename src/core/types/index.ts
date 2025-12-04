@@ -283,6 +283,15 @@ export interface PrintOptions {
    * @default false
    */
   showPrintDialog?: boolean;
+  /**
+   * Page range to print (internal use, set by print dialog)
+   * @internal
+   */
+  pageRange?: {
+    from: number;
+    to: number;
+    allPages: boolean;
+  };
 }
 
 export interface PrinterInfo {

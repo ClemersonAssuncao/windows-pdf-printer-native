@@ -1,9 +1,15 @@
 /**
  * Example: Using Print Dialog
  * Demonstrates how to show the Windows print configuration dialog before printing
+ * 
+ * Features demonstrated:
+ * - Pre-selecting a specific printer in the dialog
+ * - Allowing user to select page ranges
+ * - User can change all print settings interactively
+ * - User-selected settings override programmatic settings
  */
 
-import { PDFPrinter, PrinterManager, DuplexMode, PageOrientation, ColorMode, PaperSize, PrintQuality } from '../src';
+import { PDFPrinter, PrinterManager } from '../src';
 
 async function main() {
   try {
@@ -21,31 +27,39 @@ async function main() {
     const defaultPrinter = await PrinterManager.getDefaultPrinter();
     console.log(`Default printer: ${defaultPrinter}\n`);
 
-    // Example 1: Show print dialog with default printer
-    console.log('Example 1: Printing with dialog (default printer)');
-    const printer1 = new PDFPrinter();
+    // Example: Show print dialog with pre-selected printer
+    console.log('Example: Interactive printing with dialog');
+    console.log('The dialog will:');
+    console.log('  - Pre-select "Microsoft Print to PDF" printer');
+    console.log('  - Allow you to change the printer');
+    console.log('  - Allow you to select specific page ranges (e.g., pages 1-2)');
+    console.log('  - Allow you to change copies, orientation, and other settings');
+    console.log('  - Click "Print" to proceed or "Cancel" to abort\n');
+    
+    const printer = new PDFPrinter('Microsoft Print to PDF');
     
     try {
-      await printer1.print('./test.pdf', {
+      await printer.print('./examples/teste.pdf', {
         showPrintDialog: true,
-        // These settings will be pre-populated in the dialog
-        copies: 1,
-        duplex: DuplexMode.VERTICAL,
-        orientation: PageOrientation.PORTRAIT,
-        color: ColorMode.COLOR,
-        paperSize: PaperSize.A4,
-        quality: PrintQuality.MEDIUM
+        copies: 1
       });
-      console.log('✓ Print job submitted successfully (or cancelled by user)\n');
+      console.log('✓ Print job submitted successfully!\n');
     } catch (error: any) {
       console.error('✗ Print failed:', error.message);
     }
 
-    // Example 2: Show print dialog with specific printer
-    console.log('Example 2: Printing with dialog (specific printer)');
-    if (printers.length > 0) {
-      const specificPrinter = printers[0].name;
-      console.log(`Using printer: ${specificPrinter}`);
+    // Example 2: Print with dialog using default printer
+    console.log('\nExample 2: Using default printer in dialog');
+    const printer2 = new PDFPrinter();
+    
+    try {
+      await printer2.print('./examples/teste.pdf', {
+        showPrintDialog: true
+      });
+      console.log('✓ Print job submitted successfully!\n');
+    } catch (error: any) {
+      console.error('✗ Print failed:', error.message);
+    }
       
       const printer2 = new PDFPrinter(specificPrinter);
       

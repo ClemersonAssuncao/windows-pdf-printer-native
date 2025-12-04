@@ -151,9 +151,10 @@ Show the native Windows print dialog to allow users to configure print settings 
 ```typescript
 import { PDFPrinter } from 'windows-pdf-printer-native';
 
-const printer = new PDFPrinter();
+// Pre-select a specific printer in the dialog
+const printer = new PDFPrinter('Microsoft Print to PDF');
 
-// Show print dialog - user can configure all settings
+// Show print dialog with the printer pre-selected
 await printer.print('./document.pdf', {
   showPrintDialog: true
 });
@@ -168,7 +169,9 @@ await printer.print('./document.pdf', {
 });
 ```
 
-**Key Benefits:**
+**Key Features:**
+- 🖨️ **Printer Pre-selection** - Specified printer is pre-selected in the dialog
+- 📄 **Page Range Selection** - User can select specific pages (e.g., pages 1-3) or print all pages (default)
 - 🖱️ **User-Friendly** - Familiar Windows print dialog interface
 - ⚙️ **Full Control** - Users can override any programmatic settings
 - 🎯 **Pre-configured** - Can pre-populate settings while allowing user changes
@@ -329,21 +332,6 @@ interface PrintOptions {
   paperTray?: PaperTray | number;       // Paper tray/source
   collate?: boolean;                    // Collate copies
   showPrintDialog?: boolean;            // Show Windows print dialog (default: false)
-}
-```
-
-#### `PrinterInfo`
-
-```typescript
-interface PrinterInfo {
-  name: string;
-  serverName?: string;
-  portName?: string;
-  driverName?: string;
-  location?: string;
-  comment?: string;
-  status: number;
-  isDefault?: boolean;
 }
 ```
 

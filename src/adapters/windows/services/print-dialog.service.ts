@@ -7,8 +7,7 @@ import {
   PD_RETURNDC,
   PD_ALLPAGES,
   PD_USEDEVMODECOPIESANDCOLLATE,
-  PD_NOPAGENUMS,
-  PD_NOSELECTION,
+  PD_PAGENUMS,
   GlobalAlloc,
   GlobalFree,
   GlobalLock,
@@ -25,6 +24,11 @@ export interface PrintDialogResult {
   hDC?: any;
   devMode?: any;
   copies?: number;
+  pageRange?: {
+    from: number;
+    to: number;
+    allPages: boolean;
+  };
 }
 
 export class PrintDialogService {
@@ -39,11 +43,15 @@ export class PrintDialogService {
       hDevMode: null,
       hDevNames: null,
       hDC: null,
-      Flags: PD_RETURNDC | PD_ALLPAGES | PD_USEDEVMODECOPIESANDCOLLATE | PD_NOPAGENUMS | PD_NOSELECTION,
-      nFromPage: 0,
-      nToPage: 0,
-      nMinPage: 0,
-      nMaxPage: 0,
+      // PD_ALLPAGES: Default to "All Pages" selected
+      // PD_RETURNDC: Return device context
+      // PD_USEDEVMODECOPIESANDCOLLATE: Use DEVMODE for copies
+      // Setting nMinPage and nMaxPage enables the page range option but keeps "All" selected
+      Flags: PD_RETURNDC | PD_ALLPAGES | PD_USEDEVMODECOPIESANDCOLLATE,
+      nFromPage: 1,
+      nToPage: 1,
+      nMinPage: 1,
+      nMaxPage: 9999, // Maximum pages allowed - this enables the page range controls
       nCopies: options?.copies || 1,
       hInstance: null,
       lCustData: 0,
@@ -55,46 +63,54 @@ export class PrintDialogService {
       hSetupTemplate: null
     };
 
-    // If a specific printer is requested, we need to set up hDevNames
+    // If a specific printer is requested, pre-select it with DEVNAMES
+    // The print dialog will automatically load the DEVMODE for the selected printer
     if (printerName) {
       pd.hDevNames = this.createDevNames(printerName);
     }
 
-    // Convert to array for koffi
+    // Use array syntax for output parameter
     const pdArray = [pd];
-    const pdPtr = koffi.as(pdArray, koffi.pointer(PRINTDLGW));
 
     try {
-      // Show the print dialog
-      const result = PrintDlgW(pdPtr);
+      // Show the print dialog - PrintDlgW will modify pdArray[0]
+      const result = PrintDlgW(pdArray);
 
       if (!result) {
         // User cancelled or error occurred
-        if (pd.hDevMode) GlobalFree(pd.hDevMode);
-        if (pd.hDevNames) GlobalFree(pd.hDevNames);
+        if (pdArray[0].hDevMode) GlobalFree(pdArray[0].hDevMode);
+        if (pdArray[0].hDevNames) GlobalFree(pdArray[0].hDevNames);
         return { cancelled: true };
       }
 
-      // User clicked OK - extract settings
-      const selectedPrinterName = this.extractPrinterName(pd.hDevNames);
+      // User clicked OK - extract settings from the modified struct
+      const selectedPrinterName = this.extractPrinterName(pdArray[0].hDevNames);
+      
+      // Extract page range information
+      const pageRange = {
+        from: pdArray[0].nFromPage,
+        to: pdArray[0].nToPage,
+        allPages: (pdArray[0].Flags & PD_PAGENUMS) === 0
+      };
       
       return {
         cancelled: false,
         printerName: selectedPrinterName,
-        hDC: pd.hDC,
-        devMode: pd.hDevMode,
-        copies: pd.nCopies
+        hDC: pdArray[0].hDC,
+        devMode: pdArray[0].hDevMode,
+        copies: pdArray[0].nCopies,
+        pageRange: pageRange
       };
     } catch (error: any) {
       // Clean up on error
-      if (pd.hDevMode) {
+      if (pdArray[0].hDevMode) {
         try {
-          GlobalFree(pd.hDevMode);
+          GlobalFree(pdArray[0].hDevMode);
         } catch {}
       }
-      if (pd.hDevNames) {
+      if (pdArray[0].hDevNames) {
         try {
-          GlobalFree(pd.hDevNames);
+          GlobalFree(pdArray[0].hDevNames);
         } catch {}
       }
       throw new Error(`Failed to show print dialog: ${error.message}`);
@@ -156,7 +172,12 @@ export class PrintDialogService {
         buffer.write(outputName, offset, 'utf16le');
         
         // Copy buffer to global memory
-        buffer.copy(Buffer.from(koffi.decode(pDevNames, 'void*', totalSize) as any));
+        // Use koffi.decode to get a view of the native memory as a buffer
+        const nativeBuffer = koffi.decode(pDevNames, 'uint8_t', totalSize);
+        // Copy our buffer data into the native memory
+        for (let i = 0; i < totalSize; i++) {
+          nativeBuffer[i] = buffer[i];
+        }
         
       } finally {
         GlobalUnlock(hDevNames);

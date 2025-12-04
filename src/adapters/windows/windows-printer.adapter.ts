@@ -111,14 +111,20 @@ export class WindowsPrinterAdapter implements IPrinter {
       dialogDC = dialogResult.hDC;
       dialogDevMode = dialogResult.devMode;
       
-      // Update options with user selections
+      // Update options with user selections including page range
       finalOptions = {
         ...options,
         copies: dialogResult.copies || options?.copies,
-        printer: finalPrinterName
+        printer: finalPrinterName,
+        pageRange: dialogResult.pageRange
       };
       
-      if (process.env.DEBUG) console.log(`[DEBUG] Print dialog confirmed - using printer: ${finalPrinterName}`);
+      if (process.env.DEBUG) {
+        console.log(`[DEBUG] Print dialog confirmed - using printer: ${finalPrinterName}`);
+        if (dialogResult.pageRange && !dialogResult.pageRange.allPages) {
+          console.log(`[DEBUG] Page range: ${dialogResult.pageRange.from} to ${dialogResult.pageRange.to}`);
+        }
+      }
     }
     
     // Initialize PDF rendering service
@@ -194,13 +200,24 @@ export class WindowsPrinterAdapter implements IPrinter {
             const renderDpi = finalOptions?.quality || PrintQuality.MEDIUM;
             if (process.env.DEBUG) console.log(`[DEBUG] Using render quality: ${renderDpi} DPI (printer DPI: ${printerDpiX}x${printerDpiY})`);
             
+            // Determine page range to print
+            let startPage = 0;
+            let endPage = pageCount - 1;
+            
+            if (finalOptions?.pageRange && !finalOptions.pageRange.allPages) {
+              // User selected specific page range
+              startPage = Math.max(0, finalOptions.pageRange.from - 1); // Convert to 0-based index
+              endPage = Math.min(pageCount - 1, finalOptions.pageRange.to - 1); // Convert to 0-based index
+              if (process.env.DEBUG) console.log(`[DEBUG] Printing pages ${startPage + 1} to ${endPage + 1}`);
+            }
+            
             // Print each copy
             for (let copy = 0; copy < copies; copy++) {
               const copyStart = performance.now();
               if (process.env.DEBUG) console.log(`[DEBUG] Starting copy ${copy + 1}/${copies}`);
               
-              // Print each page
-              for (let pageIndex = 0; pageIndex < pageCount; pageIndex++) {
+              // Print each page in the range
+              for (let pageIndex = startPage; pageIndex <= endPage; pageIndex++) {
                 const pageStart = performance.now();
                 await this.printPdfPage(
                   hDC,
