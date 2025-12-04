@@ -275,6 +275,14 @@ export interface PrintOptions {
    * - Custom number (DPI value)
    */
   quality?: PrintQuality | number;
+  /**
+   * Show Windows print configuration dialog before printing
+   * When true, displays the native Windows print dialog allowing the user to
+   * configure print settings interactively before starting the print job.
+   * User-selected settings will override any programmatically specified options.
+   * @default false
+   */
+  showPrintDialog?: boolean;
 }
 
 export interface PrinterInfo {

@@ -28,11 +28,13 @@ import {
 import { WindowsPrinterManagerAdapter } from './windows-printer-manager.adapter';
 import { PdfRenderService } from './services/pdf-render.service';
 import { DevModeConfigService } from './services/devmode-config.service';
+import { PrintDialogService } from './services/print-dialog.service';
 
 export class WindowsPrinterAdapter implements IPrinter {
   private printerName: string;
   private pdfRenderService: PdfRenderService;
   private devModeConfigService: DevModeConfigService;
+  private printDialogService: PrintDialogService;
   
   constructor(printerName?: string) {
     const manager = new WindowsPrinterManagerAdapter();
@@ -53,6 +55,7 @@ export class WindowsPrinterAdapter implements IPrinter {
     // Initialize services
     this.pdfRenderService = new PdfRenderService();
     this.devModeConfigService = new DevModeConfigService();
+    this.printDialogService = new PrintDialogService();
   }
   
   async print(pdfPath: string, options?: PrintOptions): Promise<void> {
@@ -83,6 +86,41 @@ export class WindowsPrinterAdapter implements IPrinter {
     const startTime = performance.now();
     if (process.env.DEBUG) console.log(`[DEBUG] printWithRawData() started for printer: ${printerName}`);
     
+    // Show print dialog if requested
+    let finalPrinterName = printerName;
+    let finalOptions = options;
+    let dialogDC: any = null;
+    let dialogDevMode: any = null;
+    
+    if (options?.showPrintDialog) {
+      if (process.env.DEBUG) console.log(`[DEBUG] Showing print dialog...`);
+      
+      const dialogResult = this.printDialogService.showPrintDialog(printerName, options);
+      
+      if (dialogResult.cancelled) {
+        if (process.env.DEBUG) console.log(`[DEBUG] Print dialog cancelled by user`);
+        return; // User cancelled, don't print
+      }
+      
+      // Use settings from dialog
+      if (dialogResult.printerName) {
+        finalPrinterName = dialogResult.printerName;
+      }
+      
+      // Store dialog DC and devMode for later use
+      dialogDC = dialogResult.hDC;
+      dialogDevMode = dialogResult.devMode;
+      
+      // Update options with user selections
+      finalOptions = {
+        ...options,
+        copies: dialogResult.copies || options?.copies,
+        printer: finalPrinterName
+      };
+      
+      if (process.env.DEBUG) console.log(`[DEBUG] Print dialog confirmed - using printer: ${finalPrinterName}`);
+    }
+    
     // Initialize PDF rendering service
     const initStart = performance.now();
     await this.pdfRenderService.initialize();
@@ -101,20 +139,28 @@ export class WindowsPrinterAdapter implements IPrinter {
         const pageCount = this.pdfRenderService.getPageCount(pdfDoc);
         if (process.env.DEBUG) console.log(`[DEBUG] PDF has ${pageCount} page(s)`);
         
-        // Get DEVMODE settings
-        const devModeStart = performance.now();
-        const devMode = this.devModeConfigService.getDevModeWithSettings(printerName, options);
-        const devModeTime = performance.now() - devModeStart;
-        if (process.env.DEBUG) console.log(`[DEBUG] DEVMODE configured in ${devModeTime.toFixed(2)}ms`);
+        // Get DEVMODE settings (unless using dialog DC)
+        let devMode = dialogDevMode;
+        let hDC = dialogDC;
         
-        // Create Device Context for the printer
-        const dcStart = performance.now();
-        const hDC = CreateDCW(null, printerName, null, devMode);
         if (!hDC) {
-          throw new Error(`Failed to create device context for printer: ${printerName}`);
+          // No dialog DC, create manually
+          const devModeStart = performance.now();
+          devMode = this.devModeConfigService.getDevModeWithSettings(finalPrinterName, finalOptions);
+          const devModeTime = performance.now() - devModeStart;
+          if (process.env.DEBUG) console.log(`[DEBUG] DEVMODE configured in ${devModeTime.toFixed(2)}ms`);
+          
+          // Create Device Context for the printer
+          const dcStart = performance.now();
+          hDC = CreateDCW(null, finalPrinterName, null, devMode);
+          if (!hDC) {
+            throw new Error(`Failed to create device context for printer: ${finalPrinterName}`);
+          }
+          const dcTime = performance.now() - dcStart;
+          if (process.env.DEBUG) console.log(`[DEBUG] Device Context created in ${dcTime.toFixed(2)}ms`);
+        } else {
+          if (process.env.DEBUG) console.log(`[DEBUG] Using Device Context from print dialog`);
         }
-        const dcTime = performance.now() - dcStart;
-        if (process.env.DEBUG) console.log(`[DEBUG] Device Context created in ${dcTime.toFixed(2)}ms`);
         
         try {
           // Prepare document info
@@ -136,7 +182,7 @@ export class WindowsPrinterAdapter implements IPrinter {
           if (process.env.DEBUG) console.log(`[DEBUG] Document started (jobId: ${jobId}) in ${startDocTime.toFixed(2)}ms`);
           
           try {
-            const copies = options?.copies || 1;
+            const copies = finalOptions?.copies || 1;
             
             // Get printer resolution
             const printerWidth = GetDeviceCaps(hDC, HORZRES);
@@ -145,7 +191,7 @@ export class WindowsPrinterAdapter implements IPrinter {
             const printerDpiY = GetDeviceCaps(hDC, LOGPIXELSY);
             
             // Use user-specified quality or default to 300 DPI (MEDIUM)
-            const renderDpi = options?.quality || PrintQuality.MEDIUM;
+            const renderDpi = finalOptions?.quality || PrintQuality.MEDIUM;
             if (process.env.DEBUG) console.log(`[DEBUG] Using render quality: ${renderDpi} DPI (printer DPI: ${printerDpiX}x${printerDpiY})`);
             
             // Print each copy
@@ -185,8 +231,10 @@ export class WindowsPrinterAdapter implements IPrinter {
             if (process.env.DEBUG) console.log(`[DEBUG] Document ended in ${endDocTime.toFixed(2)}ms`);
           }
         } finally {
-          // Clean up device context
-          DeleteDC(hDC);
+          // Clean up device context (only if we created it, not from dialog)
+          if (!dialogDC) {
+            DeleteDC(hDC);
+          }
         }
       } finally {
         // Close PDF document
