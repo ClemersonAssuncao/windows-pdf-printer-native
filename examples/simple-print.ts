@@ -22,17 +22,19 @@ async function main() {
   console.log(`Default printer: ${defaultPrinter}\n`);
 
   // Create printer instance (uses default printer)
-  const printer = new PDFPrinter();
+  const printer = new PDFPrinter('Microsoft Print to PDF');
   console.log(`Using printer: ${printer.getPrinterName()}\n`);
 
   // Print a PDF file with default settings
-  const pdfPath = './examples/test-document.pdf';
+  const pdfPath = './examples/teste-signed.pdf';
   console.log(`Printing: ${pdfPath}`);
   console.log('Options: Default settings');
 
   try {
     console.time('Tempo de impressão');
-    await printer.print(pdfPath);
+    await printer.print(pdfPath, {
+      showPrintDialog: true
+    });
     console.timeEnd('Tempo de impressão');
     console.log('✓ Print job sent successfully!');
   } catch (error) {
