@@ -36,7 +36,7 @@ jobs:
   publish-npm:
     name: Publish to NPM
     needs: test
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     
     steps:
     - uses: actions/checkout@v4
@@ -66,8 +66,11 @@ jobs:
     - name: Get package info
       id: package
       run: |
-        echo "name=$(node -p "require('./package.json').name")" >> $GITHUB_OUTPUT
-        echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+        $name = node -p "require('./package.json').name"
+        $version = node -p "require('./package.json').version"
+        "name=$name" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+      shell: pwsh
     
     - name: Create GitHub Release (if manual)
       if: github.event_name == 'workflow_dispatch'
@@ -87,7 +90,7 @@ jobs:
   publish-gpr:
     name: Publish to GitHub Packages
     needs: test
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     permissions:
       contents: read
       packages: write

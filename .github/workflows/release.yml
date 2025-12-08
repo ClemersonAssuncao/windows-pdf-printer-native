@@ -8,7 +8,7 @@ on:
 jobs:
   create-release:
     name: Create GitHub Release
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     permissions:
       contents: write
     
@@ -35,19 +35,26 @@ jobs:
     - name: Get version from tag
       id: tag_version
       run: |
-        echo "TAG_VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+        $version = $env:GITHUB_REF -replace '^refs/tags/v', ''
+        "TAG_VERSION=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+      shell: pwsh
     
     - name: Extract changelog
       id: changelog
       run: |
-        VERSION=${{ steps.tag_version.outputs.TAG_VERSION }}
-        CHANGELOG=$(sed -n "/## \[${VERSION}\]/,/## \[/p" CHANGELOG.md | sed '1d;$d')
-        if [ -z "$CHANGELOG" ]; then
-          CHANGELOG="Release version ${VERSION}"
-        fi
-        echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
-        echo "$CHANGELOG" >> $GITHUB_OUTPUT
-        echo "EOF" >> $GITHUB_OUTPUT
+        $version = "${{ steps.tag_version.outputs.TAG_VERSION }}"
+        $content = Get-Content CHANGELOG.md -Raw
+        $pattern = "(?s)## \[$version\].*?(?=## \[|$)"
+        if ($content -match $pattern) {
+          $changelog = $matches[0] -replace "## \[$version\].*?\n", ""
+          $changelog = $changelog.Trim()
+        } else {
+          $changelog = "Release version $version"
+        }
+        "CHANGELOG<<EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        $changelog | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        "EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+      shell: pwsh
     
     - name: Create Release
       uses: actions/create-release@v1

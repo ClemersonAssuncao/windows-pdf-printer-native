@@ -27,8 +27,11 @@
 export {
   Logger,
   LogLevel,
-  LoggerOptions,
-  PerformanceTimer,
   createLogger,
   defaultLogger
+} from './logger';
+
+export type {
+  LoggerOptions,
+  PerformanceTimer
 } from './logger';

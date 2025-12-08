@@ -9,7 +9,7 @@ on:
 jobs:
   typescript:
     name: TypeScript Check
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     
     steps:
     - uses: actions/checkout@v4
@@ -31,7 +31,7 @@ jobs:
 
   package-validation:
     name: Validate Package
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     
     steps:
     - uses: actions/checkout@v4
@@ -60,11 +60,12 @@ jobs:
     
     - name: Check for sensitive files
       run: |
-        if [ -f ".env" ]; then
-          echo "Warning: .env file found"
+        if (Test-Path ".env") {
+          Write-Host "Warning: .env file found"
           exit 1
-        fi
-        if [ -f ".npmrc" ] && grep -q "authToken" .npmrc; then
-          echo "Warning: .npmrc contains authToken"
+        }
+        if ((Test-Path ".npmrc") -and (Select-String -Path ".npmrc" -Pattern "authToken" -Quiet)) {
+          Write-Host "Warning: .npmrc contains authToken"
           exit 1
-        fi
+        }
+      shell: pwsh

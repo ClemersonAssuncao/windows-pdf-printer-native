@@ -22,7 +22,7 @@ async function main() {
   console.log(`Default printer: ${defaultPrinter}\n`);
 
   // Create printer instance (uses default printer)
-  const printer = new PDFPrinter('Microsoft Print to PDF');
+  const printer = new PDFPrinter('MP-4200 TH');
   console.log(`Using printer: ${printer.getPrinterName()}\n`);
 
   // Print a PDF file with default settings
@@ -32,9 +32,7 @@ async function main() {
 
   try {
     console.time('Tempo de impressão');
-    await printer.print(pdfPath, {
-      showPrintDialog: true
-    });
+    await printer.print(pdfPath);
     console.timeEnd('Tempo de impressão');
     console.log('✓ Print job sent successfully!');
   } catch (error) {
