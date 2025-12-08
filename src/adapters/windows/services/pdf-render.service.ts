@@ -198,6 +198,46 @@ export class PdfRenderService {
   }
 
   /**
+   * Get page dimensions in points (1/72 inch)
+   */
+  getPageDimensions(pdfDoc: any, pageIndex: number): { width: number; height: number } {
+    if (!this.pdfium) {
+      const error = new Error('PDFium not initialized');
+      this.logger.error('Cannot get page dimensions', error);
+      throw error;
+    }
+
+    const page = this.pdfium.FPDF_LoadPage(pdfDoc, pageIndex);
+    if (!page) {
+      const error = new Error(`Failed to load page ${pageIndex + 1}`);
+      this.logger.error('Page load failed', error);
+      throw error;
+    }
+
+    try {
+      const width = this.pdfium.FPDF_GetPageWidth(page);
+      const height = this.pdfium.FPDF_GetPageHeight(page);
+      
+      this.logger.debug(`Page ${pageIndex} dimensions: ${width.toFixed(2)}x${height.toFixed(2)} points`);
+      
+      return { width, height };
+    } finally {
+      this.pdfium.FPDF_ClosePage(page);
+    }
+  }
+
+  calculateRenderWidth(
+    pdfDoc: any,
+    pageIndex: number,
+    targetWidth: number
+  ): { width: number; height: number } {
+    const { width: pdfW, height: pdfH } = this.getPageDimensions(pdfDoc, pageIndex);
+    const aspect = pdfW / pdfH;
+    const height = Math.floor(targetWidth / aspect);
+    return { width: targetWidth, height };
+  }
+
+  /**
    * Render a single PDF page to bitmap with caching
    */
   renderPage(

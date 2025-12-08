@@ -284,22 +284,31 @@ export class WindowsPrinterAdapter implements IPrinter {
   ): Promise<void> {
     const pageTimer = this.logger.startTimer(`printPdfPage(${pageIndex})`);
     
-    // Calculate render size based on DPI
-    // A4 paper size in inches: 8.27 x 11.69
-    const pageWidthInches = printerWidth / printerDpiX;
-    const pageHeightInches = printerHeight / printerDpiY;
-    const renderWidth = Math.floor(pageWidthInches * renderDpi);
-    const renderHeight = Math.floor(pageHeightInches * renderDpi);
-    
-    this.logger.debug(`Render size: ${renderWidth}x${renderHeight} at ${renderDpi} DPI (printer: ${printerWidth}x${printerHeight} at ${printerDpiX} DPI)`);
-    
-    // Render PDF page to bitmap using service
-    const renderedPage = this.pdfRenderService.renderPage(pdfDoc, pageIndex, {
-      width: renderWidth,
-      height: renderHeight,
-      maintainAspectRatio: true,
-      backgroundColor: 0xFFFFFFFF
-    });
+      // 1) largura física do papel em polegadas
+      const pageWidthInches = printerWidth / printerDpiX;
+
+      // 2) largura em pixels para o render (usa DPI de render)
+      const renderWidth = Math.floor(pageWidthInches * renderDpi);
+
+      // 3) pegar dimensões do PDF e calcular aspect ratio
+      const { width: pdfW, height: pdfH } =
+        this.pdfRenderService.getPageDimensions(pdfDoc, pageIndex);
+      const aspectRatio = pdfW / pdfH;
+
+      // 4) altura derivada da largura
+      const renderHeight = Math.floor(renderWidth / aspectRatio);
+
+      this.logger.debug(
+        `Render size: ${renderWidth}x${renderHeight} at ${renderDpi} DPI ` +
+        `(printer: ${printerWidth}x${printerHeight} at ${printerDpiX}x${printerDpiY} DPI)`
+      );
+
+      const renderedPage = this.pdfRenderService.renderPage(pdfDoc, pageIndex, {
+        width: renderWidth,
+        height: renderHeight,
+        maintainAspectRatio: true,
+        backgroundColor: 0xFFFFFFFF
+      });
     
     try {
       // Start GDI page

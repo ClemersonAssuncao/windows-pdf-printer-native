@@ -2,7 +2,7 @@
 import { PrinterManager } from '../src/index';
 
 async function main() {
-  PrinterManager.getPrinterCapabilities('MP-4200 TH').then(capabilities => {
+  PrinterManager.getPrinterCapabilities('Printer_Lounge_01').then(capabilities => {
     console.log('=== Printer Capabilities ===\n');
     console.log(JSON.stringify(capabilities, null, 2));
   });
