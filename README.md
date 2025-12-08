@@ -387,8 +387,32 @@ interface PrinterCapabilities {
 1. **Use MEDIUM quality (300 DPI)** for documents - perfect balance
 2. **Use LOW quality (150 DPI)** for drafts - 2x faster
 3. **Use HIGH quality (600 DPI)** only for images/photos
-4. **Enable page caching** for multiple copies (automatic)
-5. **Batch printing** - reuse printer instance for multiple jobs
+4. **Page caching** - enabled by default, renders once and reuses for multiple copies
+5. **Disable cache** when printing many different PDFs to prevent memory buildup
+6. **Batch printing** - reuse printer instance for multiple jobs
+
+### Cache Management
+
+Page caching is **enabled by default** for optimal performance when printing multiple copies. The cache is automatically cleared when closing a PDF document.
+
+```typescript
+const printer = new PDFPrinter();
+
+// Scenario 1: Printing multiple copies - keep cache enabled (default)
+await printer.print('./report.pdf', { copies: 10 });
+// ✓ Pages rendered once, cached, and reused for all 10 copies
+
+// Scenario 2: Printing different PDFs - consider disabling cache
+printer.setCacheEnabled(false);
+for (let i = 1; i <= 100; i++) {
+  await printer.print(`./invoice-${i}.pdf`);
+}
+// ✓ No cache buildup, memory efficient for sequential printing
+
+// Scenario 3: Re-enable cache for next job
+printer.setCacheEnabled(true);
+await printer.print('./another-doc.pdf', { copies: 5 });
+```
 
 ## Examples
 

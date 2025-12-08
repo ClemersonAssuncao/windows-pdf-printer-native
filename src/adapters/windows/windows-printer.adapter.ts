@@ -395,4 +395,25 @@ export class WindowsPrinterAdapter implements IPrinter {
     const manager = new WindowsPrinterManagerAdapter();
     return manager.getPrinterCapabilities(this.printerName);
   }
+
+  /**
+   * Enable or disable page caching for PDF rendering
+   * Cache is enabled by default for better performance when printing multiple copies
+   * 
+   * @param enabled - true to enable cache, false to disable
+   * 
+   * @example
+   * ```typescript
+   * const printer = new PDFPrinter();
+   * 
+   * // Disable cache if printing many different PDFs
+   * printer.setCacheEnabled(false);
+   * 
+   * // Re-enable cache for multiple copies of same PDF
+   * printer.setCacheEnabled(true);
+   * ```
+   */
+  setCacheEnabled(enabled: boolean): void {
+    this.pdfRenderService.setCacheEnabled(enabled);
+  }
 }

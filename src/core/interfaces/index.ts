@@ -25,6 +25,12 @@ export interface IPrinter {
    * Get printer capabilities
    */
   getCapabilities(): PrinterCapabilities | null | Promise<PrinterCapabilities | null>;
+
+  /**
+   * Enable or disable page caching for PDF rendering (optional)
+   * Cache is enabled by default for better performance
+   */
+  setCacheEnabled?(enabled: boolean): void;
 }
 
 /**

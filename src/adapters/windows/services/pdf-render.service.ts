@@ -163,12 +163,16 @@ export class PdfRenderService {
   }
 
   /**
-   * Close PDF document
+   * Close PDF document and clear its cache
    */
   closeDocument(pdfDoc: any): void {
     if (this.pdfium) {
       this.logger.debug('Closing PDF document');
       this.pdfium.FPDF_CloseDocument(pdfDoc);
+      
+      // Clear cache when document is closed to prevent memory leaks
+      // when printing multiple different PDFs in sequence
+      this.clearCache();
     }
   }
 

@@ -76,6 +76,35 @@ export class PDFPrinter {
   async getCapabilities() {
     return this.printer.getCapabilities();
   }
+
+  /**
+   * Enable or disable page caching for PDF rendering
+   * 
+   * Cache is enabled by default for better performance when printing multiple copies.
+   * Disable cache when printing many different PDFs to prevent memory buildup.
+   * 
+   * @param enabled - true to enable cache, false to disable
+   * 
+   * @example
+   * ```typescript
+   * const printer = new PDFPrinter();
+   * 
+   * // Disable cache when printing different PDFs sequentially
+   * printer.setCacheEnabled(false);
+   * await printer.print('./doc1.pdf');
+   * await printer.print('./doc2.pdf');
+   * await printer.print('./doc3.pdf');
+   * 
+   * // Enable cache when printing multiple copies of the same PDF
+   * printer.setCacheEnabled(true);
+   * await printer.print('./report.pdf', { copies: 10 });
+   * ```
+   */
+  setCacheEnabled(enabled: boolean): void {
+    if (this.printer.setCacheEnabled) {
+      this.printer.setCacheEnabled(enabled);
+    }
+  }
 }
 
 /**
