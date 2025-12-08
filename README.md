@@ -144,6 +144,41 @@ await printer.print('./photo.pdf', {
 });
 ```
 
+### Interactive Print Dialog
+
+Show the native Windows print dialog to allow users to configure print settings interactively:
+
+```typescript
+import { PDFPrinter } from 'windows-pdf-printer-native';
+
+// Pre-select a specific printer in the dialog
+const printer = new PDFPrinter('Microsoft Print to PDF');
+
+// Show print dialog with the printer pre-selected
+await printer.print('./document.pdf', {
+  showPrintDialog: true
+});
+
+// Show dialog with pre-populated settings
+await printer.print('./document.pdf', {
+  showPrintDialog: true,
+  copies: 2,                    // Pre-set 2 copies
+  duplex: DuplexMode.VERTICAL,  // Pre-set duplex mode
+  paperSize: PaperSize.A4       // Pre-set paper size
+  // User can still change these in the dialog
+});
+```
+
+**Key Features:**
+- 🖨️ **Printer Pre-selection** - Specified printer is pre-selected in the dialog
+- 📄 **Page Range Selection** - User can select specific pages (e.g., pages 1-3) or print all pages (default)
+- 🖱️ **User-Friendly** - Familiar Windows print dialog interface
+- ⚙️ **Full Control** - Users can override any programmatic settings
+- 🎯 **Pre-configured** - Can pre-populate settings while allowing user changes
+- ❌ **Cancellable** - User can cancel printing without error
+
+**Note:** When `showPrintDialog: true`, the print operation returns silently if the user cancels the dialog.
+
 ## API Reference
 
 ### Classes
@@ -296,21 +331,7 @@ interface PrintOptions {
   color?: ColorMode;                    // Color mode
   paperTray?: PaperTray | number;       // Paper tray/source
   collate?: boolean;                    // Collate copies
-}
-```
-
-#### `PrinterInfo`
-
-```typescript
-interface PrinterInfo {
-  name: string;
-  serverName?: string;
-  portName?: string;
-  driverName?: string;
-  location?: string;
-  comment?: string;
-  status: number;
-  isDefault?: boolean;
+  showPrintDialog?: boolean;            // Show Windows print dialog (default: false)
 }
 ```
 
