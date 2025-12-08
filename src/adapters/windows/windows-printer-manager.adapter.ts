@@ -7,9 +7,7 @@ import {
   DocumentPropertiesW,
   PRINTER_ENUM_LOCAL,
   PRINTER_ENUM_CONNECTIONS,
-  PRINTER_INFO_2W,
-  DM_IN_BUFFER,
-  DM_OUT_BUFFER
+  PRINTER_INFO_2W
 } from './api';
 import { PrinterConnectionService } from './services/printer-connection.service';
 import koffi from 'koffi';

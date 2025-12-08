@@ -8,8 +8,6 @@ import { dirname } from 'path';
 
 // Only load PDFium on Windows platform
 const isWindows = os.platform() === 'win32';
-
-// PDFium DLL path - we'll need to download it or provide it
 let pdfiumLib: any = null;
 
 // Get __dirname equivalent in ES modules
@@ -20,18 +18,13 @@ const __dirname = dirname(__filename);
 if (isWindows) {
   const possiblePaths = [
     path.join(process.cwd(), 'bin', 'pdfium.dll'),
-    path.join(__dirname, '..', '..', '..', '..', 'bin', 'pdfium.dll'),
-    path.join(process.env.PROGRAMFILES || 'C:\\Program Files', 'PDFium', 'pdfium.dll'),
+    path.join(__dirname, '..', '..', '..', '..', 'bin', 'pdfium.dll')
   ];
 
   for (const dllPath of possiblePaths) {
     if (fs.existsSync(dllPath)) {
       try {
         pdfiumLib = koffi.load(dllPath);
-        // Only log in development/debug mode
-        if (process.env.NODE_ENV !== 'production' && process.env.DEBUG) {
-          console.log(`PDFium loaded from: ${dllPath}`);
-        }
         break;
       } catch (e) {
         // Try next path

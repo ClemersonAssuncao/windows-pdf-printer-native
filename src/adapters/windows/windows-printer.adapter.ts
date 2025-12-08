@@ -1,6 +1,7 @@
 // Windows Printer Adapter - implements IPrinter interface using GDI for printing
 import type { IPrinter } from '../../core/interfaces';
 import { PrintQuality, type PrintOptions, type PrinterCapabilities } from '../../core/types';
+import { createLogger, type Logger } from '../../core/logger';
 import * as fs from 'fs';
 import * as path from 'path';
 import koffi from 'koffi';
@@ -12,7 +13,6 @@ import {
   EndDoc,
   StartPage,
   EndPage,
-  SetDIBitsToDevice,
   StretchDIBits,
   GetDeviceCaps,
   HORZRES,
@@ -35,21 +35,29 @@ export class WindowsPrinterAdapter implements IPrinter {
   private pdfRenderService: PdfRenderService;
   private devModeConfigService: DevModeConfigService;
   private printDialogService: PrintDialogService;
+  private logger: Logger;
   
   constructor(printerName?: string) {
+    this.logger = createLogger({ context: 'WindowsPrinter' });
     const manager = new WindowsPrinterManagerAdapter();
     
     if (printerName) {
       if (!manager.printerExists(printerName)) {
-        throw new Error(`Printer not found: ${printerName}`);
+        const error = new Error(`Printer not found: ${printerName}`);
+        this.logger.error('Printer not found', error);
+        throw error;
       }
       this.printerName = printerName;
+      this.logger.info(`Using specified printer: ${printerName}`);
     } else {
       const defaultPrinter = manager.getDefaultPrinter();
       if (!defaultPrinter) {
-        throw new Error('No default printer found');
+        const error = new Error('No default printer found');
+        this.logger.error('No default printer available', error);
+        throw error;
       }
       this.printerName = defaultPrinter;
+      this.logger.info(`Using default printer: ${defaultPrinter}`);
     }
     
     // Initialize services
@@ -59,11 +67,17 @@ export class WindowsPrinterAdapter implements IPrinter {
   }
   
   async print(pdfPath: string, options?: PrintOptions): Promise<void> {
+    this.logger.info(`Print request for: ${pdfPath}`);
+    
     if (!fs.existsSync(pdfPath)) {
-      throw new Error(`PDF file not found: ${pdfPath}`);
+      const error = new Error(`PDF file not found: ${pdfPath}`);
+      this.logger.error('PDF file not found', error);
+      throw error;
     }
     
     const pdfData = fs.readFileSync(pdfPath);
+    this.logger.debug(`PDF file read: ${(pdfData.length / 1024).toFixed(2)}KB`);
+    
     const documentName = options?.printer || path.basename(pdfPath);
     
     return this.printRaw(pdfData, documentName, options);
@@ -83,8 +97,8 @@ export class WindowsPrinterAdapter implements IPrinter {
     documentName: string,
     options?: PrintOptions
   ): Promise<void> {
-    const startTime = performance.now();
-    if (process.env.DEBUG) console.log(`[DEBUG] printWithRawData() started for printer: ${printerName}`);
+    const timer = this.logger.startTimer('printWithRawData()');
+    this.logger.debug(`Starting print job for printer: ${printerName}`);
     
     // Show print dialog if requested
     let finalPrinterName = printerName;
@@ -93,12 +107,12 @@ export class WindowsPrinterAdapter implements IPrinter {
     let dialogDevMode: any = null;
     
     if (options?.showPrintDialog) {
-      if (process.env.DEBUG) console.log(`[DEBUG] Showing print dialog...`);
+      this.logger.debug('Showing print dialog...');
       
       const dialogResult = this.printDialogService.showPrintDialog(printerName, options);
       
       if (dialogResult.cancelled) {
-        if (process.env.DEBUG) console.log(`[DEBUG] Print dialog cancelled by user`);
+        this.logger.info('Print dialog cancelled by user');
         return; // User cancelled, don't print
       }
       
@@ -119,31 +133,22 @@ export class WindowsPrinterAdapter implements IPrinter {
         pageRange: dialogResult.pageRange
       };
       
-      if (process.env.DEBUG) {
-        console.log(`[DEBUG] Print dialog confirmed - using printer: ${finalPrinterName}`);
-        if (dialogResult.pageRange && !dialogResult.pageRange.allPages) {
-          console.log(`[DEBUG] Page range: ${dialogResult.pageRange.from} to ${dialogResult.pageRange.to}`);
-        }
+      this.logger.info(`Print dialog confirmed - using printer: ${finalPrinterName}`);
+      if (dialogResult.pageRange && !dialogResult.pageRange.allPages) {
+        this.logger.debug(`Page range: ${dialogResult.pageRange.from} to ${dialogResult.pageRange.to}`);
       }
     }
     
     // Initialize PDF rendering service
-    const initStart = performance.now();
     await this.pdfRenderService.initialize();
-    const initTime = performance.now() - initStart;
-    if (process.env.DEBUG) console.log(`[DEBUG] PDF service initialized in ${initTime.toFixed(2)}ms`);
     
     try {
       // Load PDF document
-      const loadDocStart = performance.now();
       const pdfDoc = this.pdfRenderService.loadDocument(data);
-      const loadDocTime = performance.now() - loadDocStart;
-      if (process.env.DEBUG) console.log(`[DEBUG] PDF document loaded in ${loadDocTime.toFixed(2)}ms`);
       
       try {
         // Get page count
         const pageCount = this.pdfRenderService.getPageCount(pdfDoc);
-        if (process.env.DEBUG) console.log(`[DEBUG] PDF has ${pageCount} page(s)`);
         
         // Get DEVMODE settings (unless using dialog DC)
         let devMode = dialogDevMode;
@@ -151,21 +156,19 @@ export class WindowsPrinterAdapter implements IPrinter {
         
         if (!hDC) {
           // No dialog DC, create manually
-          const devModeStart = performance.now();
           devMode = this.devModeConfigService.getDevModeWithSettings(finalPrinterName, finalOptions);
-          const devModeTime = performance.now() - devModeStart;
-          if (process.env.DEBUG) console.log(`[DEBUG] DEVMODE configured in ${devModeTime.toFixed(2)}ms`);
           
           // Create Device Context for the printer
-          const dcStart = performance.now();
+          const dcTimer = this.logger.startTimer('Device Context creation');
           hDC = CreateDCW(null, finalPrinterName, null, devMode);
           if (!hDC) {
-            throw new Error(`Failed to create device context for printer: ${finalPrinterName}`);
+            const error = new Error(`Failed to create device context for printer: ${finalPrinterName}`);
+            this.logger.error('DC creation failed', error);
+            throw error;
           }
-          const dcTime = performance.now() - dcStart;
-          if (process.env.DEBUG) console.log(`[DEBUG] Device Context created in ${dcTime.toFixed(2)}ms`);
+          this.logger.endTimer(dcTimer);
         } else {
-          if (process.env.DEBUG) console.log(`[DEBUG] Using Device Context from print dialog`);
+          this.logger.debug('Using Device Context from print dialog');
         }
         
         try {
@@ -179,13 +182,15 @@ export class WindowsPrinterAdapter implements IPrinter {
           };
           
           // Start document
-          const startDocBegin = performance.now();
+          const startDocTimer = this.logger.startTimer('Start document');
           const jobId = StartDocW(hDC, docInfo);
           if (jobId <= 0) {
-            throw new Error(`Failed to start document. Error: ${GetLastError()}`);
+            const error = new Error(`Failed to start document. Error: ${GetLastError()}`);
+            this.logger.error('Document start failed', error);
+            throw error;
           }
-          const startDocTime = performance.now() - startDocBegin;
-          if (process.env.DEBUG) console.log(`[DEBUG] Document started (jobId: ${jobId}) in ${startDocTime.toFixed(2)}ms`);
+          this.logger.endTimer(startDocTimer);
+          this.logger.info(`Print job started (jobId: ${jobId})`);
           
           try {
             const copies = finalOptions?.copies || 1;
@@ -198,7 +203,7 @@ export class WindowsPrinterAdapter implements IPrinter {
             
             // Use user-specified quality or default to 300 DPI (MEDIUM)
             const renderDpi = finalOptions?.quality || PrintQuality.MEDIUM;
-            if (process.env.DEBUG) console.log(`[DEBUG] Using render quality: ${renderDpi} DPI (printer DPI: ${printerDpiX}x${printerDpiY})`);
+            this.logger.debug(`Render quality: ${renderDpi} DPI (printer DPI: ${printerDpiX}x${printerDpiY})`);
             
             // Determine page range to print
             let startPage = 0;
@@ -208,17 +213,16 @@ export class WindowsPrinterAdapter implements IPrinter {
               // User selected specific page range
               startPage = Math.max(0, finalOptions.pageRange.from - 1); // Convert to 0-based index
               endPage = Math.min(pageCount - 1, finalOptions.pageRange.to - 1); // Convert to 0-based index
-              if (process.env.DEBUG) console.log(`[DEBUG] Printing pages ${startPage + 1} to ${endPage + 1}`);
+              this.logger.info(`Printing pages ${startPage + 1} to ${endPage + 1}`);
             }
             
             // Print each copy
             for (let copy = 0; copy < copies; copy++) {
-              const copyStart = performance.now();
-              if (process.env.DEBUG) console.log(`[DEBUG] Starting copy ${copy + 1}/${copies}`);
+              const copyTimer = this.logger.startTimer(`Copy ${copy + 1}/${copies}`);
+              this.logger.debug(`Starting copy ${copy + 1}/${copies}`);
               
               // Print each page in the range
               for (let pageIndex = startPage; pageIndex <= endPage; pageIndex++) {
-                const pageStart = performance.now();
                 await this.printPdfPage(
                   hDC,
                   pdfDoc,
@@ -229,46 +233,39 @@ export class WindowsPrinterAdapter implements IPrinter {
                   printerDpiX,
                   printerDpiY
                 );
-                const pageTime = performance.now() - pageStart;
-                if (process.env.DEBUG) console.log(`[DEBUG] Page ${pageIndex + 1}/${pageCount} printed in ${pageTime.toFixed(2)}ms`);
+                this.logger.debug(`Page ${pageIndex + 1}/${pageCount} printed`);
               }
               
-              const copyTime = performance.now() - copyStart;
-              if (process.env.DEBUG) console.log(`[DEBUG] Copy ${copy + 1}/${copies} completed in ${copyTime.toFixed(2)}ms`);
+              this.logger.endTimer(copyTimer);
             }
             
           } finally {
             // End the document
-            const endDocStart = performance.now();
+            const endDocTimer = this.logger.startTimer('End document');
             const endDocResult = EndDoc(hDC);
             if (endDocResult <= 0) {
-              throw new Error(`Failed to end document. Error: ${GetLastError()}`);
+              const error = new Error(`Failed to end document. Error: ${GetLastError()}`);
+              this.logger.error('Document end failed', error);
+              throw error;
             }
-            const endDocTime = performance.now() - endDocStart;
-            if (process.env.DEBUG) console.log(`[DEBUG] Document ended in ${endDocTime.toFixed(2)}ms`);
+            this.logger.endTimer(endDocTimer);
+            this.logger.info('Print job completed successfully');
           }
         } finally {
           // Clean up device context (only if we created it, not from dialog)
           if (!dialogDC) {
+            this.logger.debug('Cleaning up Device Context');
             DeleteDC(hDC);
           }
         }
       } finally {
         // Close PDF document
-        const closeDocStart = performance.now();
         this.pdfRenderService.closeDocument(pdfDoc);
-        const closeDocTime = performance.now() - closeDocStart;
-        if (process.env.DEBUG) console.log(`[DEBUG] PDF document closed in ${closeDocTime.toFixed(2)}ms`);
       }
     } finally {
       // Cleanup PDFium
-      const cleanupStart = performance.now();
       this.pdfRenderService.cleanup();
-      const cleanupTime = performance.now() - cleanupStart;
-      if (process.env.DEBUG) console.log(`[DEBUG] PDFium cleanup in ${cleanupTime.toFixed(2)}ms`);
-      
-      const totalTime = performance.now() - startTime;
-      if (process.env.DEBUG) console.log(`[DEBUG] printWithRawData() TOTAL TIME: ${totalTime.toFixed(2)}ms`);
+      this.logger.endTimer(timer);
     }
   }
   
@@ -285,7 +282,7 @@ export class WindowsPrinterAdapter implements IPrinter {
     printerDpiX: number,
     printerDpiY: number
   ): Promise<void> {
-    const pageStart = performance.now();
+    const pageTimer = this.logger.startTimer(`printPdfPage(${pageIndex})`);
     
     // Calculate render size based on DPI
     // A4 paper size in inches: 8.27 x 11.69
@@ -294,28 +291,26 @@ export class WindowsPrinterAdapter implements IPrinter {
     const renderWidth = Math.floor(pageWidthInches * renderDpi);
     const renderHeight = Math.floor(pageHeightInches * renderDpi);
     
-    if (process.env.DEBUG) console.log(`[DEBUG] Render size: ${renderWidth}x${renderHeight} at ${renderDpi} DPI (printer: ${printerWidth}x${printerHeight} at ${printerDpiX} DPI)`);
+    this.logger.debug(`Render size: ${renderWidth}x${renderHeight} at ${renderDpi} DPI (printer: ${printerWidth}x${printerHeight} at ${printerDpiX} DPI)`);
     
     // Render PDF page to bitmap using service
-    const renderStart = performance.now();
     const renderedPage = this.pdfRenderService.renderPage(pdfDoc, pageIndex, {
       width: renderWidth,
       height: renderHeight,
       maintainAspectRatio: true,
       backgroundColor: 0xFFFFFFFF
     });
-    const renderTime = performance.now() - renderStart;
-    if (process.env.DEBUG) console.log(`[DEBUG] printPdfPage() - render completed in ${renderTime.toFixed(2)}ms`);
     
     try {
       // Start GDI page
-      const startPageBegin = performance.now();
+      const startPageTimer = this.logger.startTimer('StartPage()');
       const pageResult = StartPage(hDC);
       if (pageResult <= 0) {
-        throw new Error(`Failed to start page. Error: ${GetLastError()}`);
+        const error = new Error(`Failed to start page. Error: ${GetLastError()}`);
+        this.logger.error('StartPage failed', error);
+        throw error;
       }
-      const startPageTime = performance.now() - startPageBegin;
-      if (process.env.DEBUG) console.log(`[DEBUG] StartPage() in ${startPageTime.toFixed(2)}ms`);
+      this.logger.endTimer(startPageTimer);
       
       try {
         // Prepare BITMAPINFOHEADER
@@ -350,7 +345,7 @@ export class WindowsPrinterAdapter implements IPrinter {
         const offsetY = Math.floor((printerHeight - scaledHeight) / 2);
         
         // Draw bitmap to printer DC using StretchDIBits for proper scaling
-        const drawStart = performance.now();
+        const drawTimer = this.logger.startTimer(`StretchDIBits (${renderWidth}x${renderHeight} to ${scaledWidth}x${scaledHeight})`);
         const result = StretchDIBits(
           hDC,
           offsetX,                // xDest
@@ -366,25 +361,25 @@ export class WindowsPrinterAdapter implements IPrinter {
           DIB_RGB_COLORS,         // iUsage
           SRCCOPY                 // rop
         );
-        const drawTime = performance.now() - drawStart;
-        if (process.env.DEBUG) console.log(`[DEBUG] StretchDIBits() in ${drawTime.toFixed(2)}ms (scaled ${renderWidth}x${renderHeight} to ${scaledWidth}x${scaledHeight})`);
+        this.logger.endTimer(drawTimer);
         
         if (result === 0) {
-          throw new Error(`Failed to draw bitmap to printer. Error: ${GetLastError()}`);
+          const error = new Error(`Failed to draw bitmap to printer. Error: ${GetLastError()}`);
+          this.logger.error('StretchDIBits failed', error);
+          throw error;
         }
         
       } finally {
         // End the page
-        const endPageBegin = performance.now();
+        const endPageTimer = this.logger.startTimer('EndPage()');
         const endResult = EndPage(hDC);
         if (endResult <= 0) {
-          throw new Error(`Failed to end page. Error: ${GetLastError()}`);
+          const error = new Error(`Failed to end page. Error: ${GetLastError()}`);
+          this.logger.error('EndPage failed', error);
+          throw error;
         }
-        const endPageTime = performance.now() - endPageBegin;
-        if (process.env.DEBUG) console.log(`[DEBUG] EndPage() in ${endPageTime.toFixed(2)}ms`);
-        
-        const totalPageTime = performance.now() - pageStart;
-        if (process.env.DEBUG) console.log(`[DEBUG] printPdfPage() TOTAL: ${totalPageTime.toFixed(2)}ms`);
+        this.logger.endTimer(endPageTimer);
+        this.logger.endTimer(pageTimer);
       }
     } finally {
       // Cleanup rendered page bitmap

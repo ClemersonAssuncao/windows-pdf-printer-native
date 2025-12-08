@@ -1,7 +1,6 @@
 // Windows Common Dialog API - Print Dialog functions
 import koffi from 'koffi';
 import * as os from 'os';
-import { DEVMODEW } from './gdi32.api';
 
 // Only load Windows DLLs on Windows platform
 const isWindows = os.platform() === 'win32';

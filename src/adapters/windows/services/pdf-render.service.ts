@@ -1,5 +1,6 @@
 // PDF Rendering Service using PDFium with performance optimizations
 import type * as PdfiumAPI from '../api/pdfium.api';
+import { createLogger, type Logger } from '../../../core/logger';
 
 export interface RenderOptions {
   width: number;
@@ -25,51 +26,58 @@ export class PdfRenderService {
   private isInitialized = false;
   private pageCache: Map<string, RenderedPage> = new Map();
   private cacheEnabled = true;
+  private logger: Logger;
+
+  constructor() {
+    this.logger = createLogger({ context: 'PdfRender' });
+  }
 
   /**
    * Initialize PDFium library (using singleton for performance)
    */
   async initialize(): Promise<void> {
-    const startTime = performance.now();
+    const timer = this.logger.startTimer('PdfRenderService.initialize()');
+    
     if (this.isInitialized) {
-      if (process.env.DEBUG) console.log('[DEBUG] PDFium already initialized');
+      this.logger.debug('PDFium already initialized');
       return;
     }
 
     // Use singleton PDFium instance
     if (!globalPdfiumInstance) {
-      const loadStart = performance.now();
+      const loadTimer = this.logger.startTimer('PDFium module load');
       globalPdfiumInstance = await import('../api/pdfium.api');
-      const loadTime = performance.now() - loadStart;
-      if (process.env.DEBUG) console.log(`[DEBUG] PDFium module loaded in ${loadTime.toFixed(2)}ms`);
+      this.logger.endTimer(loadTimer);
 
       if (!globalPdfiumInstance.isPDFiumAvailable()) {
-        throw new Error(
+        const error = new Error(
           'PDFium library not found. Please download pdfium.dll from:\n' +
           'https://github.com/bblanchon/pdfium-binaries/releases\n' +
           'and place it in the bin/ directory of your project.'
         );
+        this.logger.error('PDFium library not available', error);
+        throw error;
       }
 
       // Initialize PDFium only once globally
-      const initStart = performance.now();
+      const initTimer = this.logger.startTimer('PDFium library initialization');
       globalPdfiumInstance.FPDF_InitLibrary();
-      const initTime = performance.now() - initStart;
-      if (process.env.DEBUG) console.log(`[DEBUG] PDFium library initialized in ${initTime.toFixed(2)}ms`);
+      this.logger.endTimer(initTimer);
     }
 
     this.pdfium = globalPdfiumInstance;
     globalInitCount++;
     this.isInitialized = true;
     
-    const totalTime = performance.now() - startTime;
-    if (process.env.DEBUG) console.log(`[DEBUG] PdfRenderService.initialize() completed in ${totalTime.toFixed(2)}ms (refCount: ${globalInitCount})`);
+    this.logger.endTimer(timer);
+    this.logger.debug(`PDFium reference count: ${globalInitCount}`);
   }
 
   /**
    * Enable or disable page caching
    */
   setCacheEnabled(enabled: boolean): void {
+    this.logger.debug(`Page caching ${enabled ? 'enabled' : 'disabled'}`);
     this.cacheEnabled = enabled;
     if (!enabled) {
       this.clearCache();
@@ -82,12 +90,14 @@ export class PdfRenderService {
   cleanup(): void {
     if (this.isInitialized) {
       globalInitCount--;
+      this.logger.debug(`Cleaning up PDFium instance (refCount: ${globalInitCount})`);
       
       // Clear this instance's cache
       this.clearCache();
       
       // Only destroy PDFium when no more instances are using it
       if (globalInitCount <= 0 && globalPdfiumInstance) {
+        this.logger.debug('Destroying global PDFium instance');
         globalPdfiumInstance.FPDF_DestroyLibrary();
         globalPdfiumInstance = null;
         globalInitCount = 0;
@@ -102,6 +112,11 @@ export class PdfRenderService {
    * Clear page cache
    */
   clearCache(): void {
+    const cacheSize = this.pageCache.size;
+    if (cacheSize > 0) {
+      this.logger.debug(`Clearing page cache (${cacheSize} pages)`);
+    }
+    
     // Cleanup all cached bitmaps
     for (const page of this.pageCache.values()) {
       if (page._bitmap && this.pdfium) {
@@ -125,19 +140,24 @@ export class PdfRenderService {
    * Load PDF document from buffer
    */
   loadDocument(pdfData: Buffer): any {
-    const startTime = performance.now();
+    const timer = this.logger.startTimer('PDF document load');
+    
     if (!this.pdfium) {
-      throw new Error('PDFium not initialized. Call initialize() first.');
+      const error = new Error('PDFium not initialized. Call initialize() first.');
+      this.logger.error('Cannot load document', error);
+      throw error;
     }
 
     const pdfDoc = this.pdfium.FPDF_LoadMemDocument(pdfData, pdfData.length, null);
     if (!pdfDoc) {
-      const error = this.pdfium.FPDF_GetLastError();
-      throw new Error(`Failed to load PDF document. PDFium error code: ${error}`);
+      const errorCode = this.pdfium.FPDF_GetLastError();
+      const error = new Error(`Failed to load PDF document. PDFium error code: ${errorCode}`);
+      this.logger.error('PDF load failed', error);
+      throw error;
     }
 
-    const loadTime = performance.now() - startTime;
-    if (process.env.DEBUG) console.log(`[DEBUG] PDF document loaded in ${loadTime.toFixed(2)}ms (size: ${(pdfData.length / 1024).toFixed(2)}KB)`);
+    this.logger.endTimer(timer);
+    this.logger.debug(`PDF size: ${(pdfData.length / 1024).toFixed(2)}KB`);
 
     return pdfDoc;
   }
@@ -147,6 +167,7 @@ export class PdfRenderService {
    */
   closeDocument(pdfDoc: any): void {
     if (this.pdfium) {
+      this.logger.debug('Closing PDF document');
       this.pdfium.FPDF_CloseDocument(pdfDoc);
     }
   }
@@ -156,14 +177,19 @@ export class PdfRenderService {
    */
   getPageCount(pdfDoc: any): number {
     if (!this.pdfium) {
-      throw new Error('PDFium not initialized');
+      const error = new Error('PDFium not initialized');
+      this.logger.error('Cannot get page count', error);
+      throw error;
     }
 
     const pageCount = this.pdfium.FPDF_GetPageCount(pdfDoc);
     if (pageCount <= 0) {
-      throw new Error('PDF document has no pages');
+      const error = new Error('PDF document has no pages');
+      this.logger.error('Invalid PDF document', error);
+      throw error;
     }
 
+    this.logger.debug(`PDF has ${pageCount} page(s)`);
     return pageCount;
   }
 
@@ -175,27 +201,31 @@ export class PdfRenderService {
     pageIndex: number,
     options: RenderOptions
   ): RenderedPage {
-    const startTime = performance.now();
+    const timer = this.logger.startTimer(`renderPage(${pageIndex})`);
+    
     if (!this.pdfium) {
-      throw new Error('PDFium not initialized');
+      const error = new Error('PDFium not initialized');
+      this.logger.error('Cannot render page', error);
+      throw error;
     }
 
     // Check cache if enabled
     const cacheKey = `${pageIndex}_${options.width}_${options.height}`;
     if (this.cacheEnabled && this.pageCache.has(cacheKey)) {
-      const cacheTime = performance.now() - startTime;
-      if (process.env.DEBUG) console.log(`[DEBUG] Page ${pageIndex} retrieved from cache in ${cacheTime.toFixed(2)}ms`);
+      this.logger.endTimer(timer);
+      this.logger.debug(`Page ${pageIndex} retrieved from cache`);
       return this.pageCache.get(cacheKey)!;
     }
 
     // Load the page
-    const pageLoadStart = performance.now();
+    const pageLoadTimer = this.logger.startTimer(`Page ${pageIndex} load`);
     const page = this.pdfium.FPDF_LoadPage(pdfDoc, pageIndex);
     if (!page) {
-      throw new Error(`Failed to load page ${pageIndex + 1}`);
+      const error = new Error(`Failed to load page ${pageIndex + 1}`);
+      this.logger.error('Page load failed', error);
+      throw error;
     }
-    const pageLoadTime = performance.now() - pageLoadStart;
-    if (process.env.DEBUG) console.log(`[DEBUG] Page ${pageIndex} loaded in ${pageLoadTime.toFixed(2)}ms`);
+    this.logger.endTimer(pageLoadTimer);
 
     try {
       // Get page dimensions in points (1/72 inch)
@@ -220,7 +250,7 @@ export class PdfRenderService {
       }
 
       // Create bitmap for rendering (BGRA format for Windows)
-      const bitmapCreateStart = performance.now();
+      const bitmapTimer = this.logger.startTimer(`Bitmap creation (${renderWidth}x${renderHeight})`);
       const bitmap = this.pdfium.FPDFBitmap_Create(
         renderWidth,
         renderHeight,
@@ -228,21 +258,21 @@ export class PdfRenderService {
       );
 
       if (!bitmap) {
-        throw new Error('Failed to create bitmap');
+        const error = new Error('Failed to create bitmap');
+        this.logger.error('Bitmap creation failed', error);
+        throw error;
       }
-      const bitmapCreateTime = performance.now() - bitmapCreateStart;
-      if (process.env.DEBUG) console.log(`[DEBUG] Bitmap created (${renderWidth}x${renderHeight}) in ${bitmapCreateTime.toFixed(2)}ms`);
+      this.logger.endTimer(bitmapTimer);
 
       try {
         // Fill with background color (default white)
-        const fillStart = performance.now();
+        const fillTimer = this.logger.startTimer('Bitmap fill');
         const bgColor = options.backgroundColor ?? 0xFFFFFFFF;
         this.pdfium.FPDFBitmap_FillRect(bitmap, 0, 0, renderWidth, renderHeight, bgColor);
-        const fillTime = performance.now() - fillStart;
-        if (process.env.DEBUG) console.log(`[DEBUG] Bitmap filled in ${fillTime.toFixed(2)}ms`);
+        this.logger.endTimer(fillTimer);
 
         // Render PDF page to bitmap
-        const renderStart = performance.now();
+        const renderTimer = this.logger.startTimer(`Page ${pageIndex} render to bitmap`);
         this.pdfium.FPDF_RenderPageBitmap(
           bitmap,
           page,
@@ -253,8 +283,7 @@ export class PdfRenderService {
           0,              // rotate (0 = no rotation)
           this.pdfium.FPDF_PRINTING | this.pdfium.FPDF_ANNOT  // flags
         );
-        const renderTime = performance.now() - renderStart;
-        if (process.env.DEBUG) console.log(`[DEBUG] Page ${pageIndex} rendered to bitmap in ${renderTime.toFixed(2)}ms`);
+        this.logger.endTimer(renderTimer);
 
         // Get bitmap data - we need to keep the bitmap alive until after rendering
         const buffer = this.pdfium.FPDFBitmap_GetBuffer(bitmap);
@@ -273,12 +302,10 @@ export class PdfRenderService {
         if (this.cacheEnabled) {
           const cacheKey = `${pageIndex}_${options.width}_${options.height}`;
           this.pageCache.set(cacheKey, renderedPage);
-          if (process.env.DEBUG) console.log(`[DEBUG] Page ${pageIndex} cached with key: ${cacheKey}`);
+          this.logger.debug(`Page ${pageIndex} cached with key: ${cacheKey}`);
         }
 
-        const totalTime = performance.now() - startTime;
-        if (process.env.DEBUG) console.log(`[DEBUG] renderPage() completed for page ${pageIndex} in ${totalTime.toFixed(2)}ms`);
-
+        this.logger.endTimer(timer);
         return renderedPage;
 
       } catch (error) {
@@ -301,18 +328,29 @@ export class PdfRenderService {
     options: RenderOptions
   ): Promise<void> {
     if (!this.cacheEnabled) {
+      this.logger.debug('Pre-rendering skipped: cache is disabled');
       return; // No point pre-rendering if cache is disabled
     }
 
-    // Render pages that aren't already cached
-    const renderPromises = pageIndices.map(pageIndex => {
+    const pagesToRender = pageIndices.filter(pageIndex => {
       const cacheKey = `${pageIndex}_${options.width}_${options.height}`;
-      if (!this.pageCache.has(cacheKey)) {
-        return Promise.resolve().then(() => this.renderPage(pdfDoc, pageIndex, options));
-      }
-      return Promise.resolve();
+      return !this.pageCache.has(cacheKey);
     });
 
+    if (pagesToRender.length === 0) {
+      this.logger.debug('All pages already cached, no pre-rendering needed');
+      return;
+    }
+
+    this.logger.debug(`Pre-rendering ${pagesToRender.length} page(s)`);
+    const timer = this.logger.startTimer(`Pre-render ${pagesToRender.length} pages`);
+
+    // Render pages that aren't already cached
+    const renderPromises = pagesToRender.map(pageIndex => 
+      Promise.resolve().then(() => this.renderPage(pdfDoc, pageIndex, options))
+    );
+
     await Promise.all(renderPromises);
+    this.logger.endTimer(timer);
   }
 }

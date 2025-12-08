@@ -2,8 +2,7 @@
 import {
   OpenPrinterW,
   ClosePrinter,
-  PRINTER_ACCESS_USE,
-  PRINTER_DEFAULTS
+  PRINTER_ACCESS_USE
 } from '../api';
 
 export class PrinterConnectionService {
