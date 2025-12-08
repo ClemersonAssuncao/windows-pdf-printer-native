@@ -214,7 +214,7 @@ export class PdfRenderService {
     }
 
     // Check cache if enabled
-    const cacheKey = `${pageIndex}_${options.width}_${options.height}`;
+    const cacheKey = this.getCacheKey(pageIndex, options.width, options.height);
     if (this.cacheEnabled && this.pageCache.has(cacheKey)) {
       this.logger.endTimer(timer);
       this.logger.debug(`Page ${pageIndex} retrieved from cache`);
@@ -304,7 +304,7 @@ export class PdfRenderService {
 
         // Cache if enabled
         if (this.cacheEnabled) {
-          const cacheKey = `${pageIndex}_${options.width}_${options.height}`;
+          const cacheKey = this.getCacheKey(pageIndex, options.width, options.height);
           this.pageCache.set(cacheKey, renderedPage);
           this.logger.debug(`Page ${pageIndex} cached with key: ${cacheKey}`);
         }
@@ -323,6 +323,10 @@ export class PdfRenderService {
     }
   }
 
+  getCacheKey(pageIndex: number, width: number, height: number): string {
+    return `${pageIndex}_${width}_${height}`;
+  }
+
   /**
    * Pre-render multiple pages in parallel (performance optimization)
    */
@@ -337,7 +341,7 @@ export class PdfRenderService {
     }
 
     const pagesToRender = pageIndices.filter(pageIndex => {
-      const cacheKey = `${pageIndex}_${options.width}_${options.height}`;
+      const cacheKey = this.getCacheKey(pageIndex, options.width, options.height);
       return !this.pageCache.has(cacheKey);
     });
 
