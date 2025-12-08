@@ -56,7 +56,6 @@ A **high-performance**, **native Windows PDF printing library** for Node.js usin
 ### 📊 Printer Management
 - **List Printers** - Enumerate all system printers with capabilities
 - **Default Printer** - Automatic detection and usage
-- **Capabilities Query** - Check duplex/color support, available paper sizes
 - **DEVMODE Configuration** - Direct Windows printer settings control
 
 ## Requirements
@@ -288,12 +287,6 @@ await printer.printRaw(pdfBuffer, 'Document', options);
 const name = printer.getPrinterName();
 ```
 
-**`getCapabilities(): PrinterCapabilities | null`**
-```typescript
-const caps = printer.getCapabilities();
-console.log(caps.supportsDuplex, caps.supportsColor);
-```
-
 #### `PrinterManager`
 
 **Static Methods:**
@@ -312,11 +305,6 @@ const defaultPrinter = await PrinterManager.getDefaultPrinter();
 **`printerExists(printerName: string): Promise<boolean>`**
 ```typescript
 const exists = await PrinterManager.printerExists('HP LaserJet');
-```
-
-**`getPrinterCapabilities(printerName: string): PrinterCapabilities | null`**
-```typescript
-const caps = PrinterManager.getPrinterCapabilities('MyPrinter');
 ```
 
 ### Interfaces
@@ -349,18 +337,6 @@ interface PrinterInfo {
   comment?: string;
   status: number;
   isDefault?: boolean;
-}
-```
-
-#### `PrinterCapabilities`
-
-```typescript
-interface PrinterCapabilities {
-  supportsDuplex: boolean;
-  supportsColor: boolean;
-  defaultPaperSize: PaperSize | number;
-  availablePaperSizes: (PaperSize | number)[];
-  availablePaperSources: number[];
 }
 ```
 
@@ -505,12 +481,6 @@ const printers = await PrinterManager.getAvailablePrinters();
 
 printers.forEach(printer => {
   console.log(`${printer.name}${printer.isDefault ? ' (DEFAULT)' : ''}`);
-  
-  const capabilities = PrinterManager.getPrinterCapabilities(printer.name);
-  if (capabilities) {
-    console.log(`  Duplex: ${capabilities.supportsDuplex}`);
-    console.log(`  Color: ${capabilities.supportsColor}`);
-  }
 });
 ```
 
@@ -535,16 +505,6 @@ console.log(printers);
 - Ensure the printer driver is properly installed
 - Try printing a test page from Windows Settings to confirm functionality
 - Check Windows Event Viewer for detailed error messages
-
-#### Duplex not working
-
-Not all printers support duplex printing. Check capabilities:
-
-```typescript
-const printer = new PDFPrinter();
-const capabilities = await printer.getCapabilities();
-console.log('Duplex supported:', capabilities?.supportsDuplex);
-```
 
 #### PDF not rendering correctly
 

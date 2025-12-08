@@ -23,17 +23,6 @@ async function main() {
     if ('comment' in printer && printer.comment) {
       console.log(`   Comment: ${printer.comment}`);
     }
-    
-    // Get capabilities (Windows only)
-    const capabilities = await PrinterManager.getPrinterCapabilities(printer.name);
-    if (capabilities) {
-      console.log('   Capabilities:');
-      console.log(`     - Duplex: ${capabilities.supportsDuplex ? 'Supported' : 'Not supported'}`);
-      console.log(`     - Color: ${capabilities.supportsColor ? 'Supported' : 'Not supported'}`);
-      console.log(`     - Default paper size: ${capabilities.defaultPaperSize}`);
-    }
-    
-    console.log();
   });
 }
 

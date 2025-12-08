@@ -136,3 +136,28 @@ export const EnumPrintProcessorDatatypesW = isWindows
       koffi.out(koffi.pointer('uint32')) // pcReturned
     ])
   : (() => { throw new Error('Windows API not available on this platform'); }) as any;
+
+// DeviceCapabilities constants
+export const DC_PAPERS = 2;        // Supported paper sizes
+export const DC_PAPERSIZE = 3;     // Physical dimensions of paper
+export const DC_MINEXTENT = 4;     // Minimum paper size
+export const DC_MAXEXTENT = 5;     // Maximum paper size
+export const DC_BINS = 6;          // Available paper bins/trays
+export const DC_DUPLEX = 7;        // Duplex support
+export const DC_BINNAMES = 12;     // Names of bins/trays
+export const DC_COPIES = 18;       // Maximum number of copies
+export const DC_PAPERNAMES = 16;   // Names of paper forms
+export const DC_MEDIAREADY = 29;   // Media loaded in printer
+export const DC_MEDIATYPENAMES = 34; // Names of media types
+export const DC_MEDIATYPES = 35;   // Media type IDs
+
+// DeviceCapabilitiesW function
+export const DeviceCapabilitiesW = isWindows
+  ? winspool.func('DeviceCapabilitiesW', 'int32', [
+      'str16',                           // pDevice (printer name)
+      'str16',                           // pPort (can be null)
+      'uint16',                          // fwCapability (DC_* constant)
+      'void*',                           // pOutput (buffer for results)
+      koffi.pointer(DEVMODEW)            // pDevMode (can be null)
+    ])
+  : (() => { throw new Error('Windows API not available on this platform'); }) as any;

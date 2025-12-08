@@ -1,6 +1,6 @@
 // Windows Printer Adapter - implements IPrinter interface using GDI for printing
 import type { IPrinter } from '../../core/interfaces';
-import { PrintQuality, type PrintOptions, type PrinterCapabilities } from '../../core/types';
+import { PrintQuality, type PrintOptions } from '../../core/types';
 import { createLogger, type Logger } from '../../core/logger';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -389,11 +389,6 @@ export class WindowsPrinterAdapter implements IPrinter {
   
   getPrinterName(): string {
     return this.printerName;
-  }
-  
-  getCapabilities(): PrinterCapabilities | null {
-    const manager = new WindowsPrinterManagerAdapter();
-    return manager.getPrinterCapabilities(this.printerName);
   }
 
   /**

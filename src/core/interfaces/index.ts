@@ -1,5 +1,5 @@
 // Core interfaces - define contracts for printer operations
-import type { PrintOptions, PrinterInfo, PrinterCapabilities } from '../types';
+import type { PrintOptions, PrinterInfo, PrinterCapabilitiesInfo } from '../types';
 
 /**
  * Interface for printer operations
@@ -20,11 +20,6 @@ export interface IPrinter {
    * Get the printer name being used
    */
   getPrinterName(): string;
-  
-  /**
-   * Get printer capabilities
-   */
-  getCapabilities(): PrinterCapabilities | null | Promise<PrinterCapabilities | null>;
 
   /**
    * Enable or disable page caching for PDF rendering (optional)
@@ -46,16 +41,16 @@ export interface IPrinterManager {
    * Get the default printer name
    */
   getDefaultPrinter(): string | null | Promise<string | null>;
+
+  /**
+   * Get the default printer name
+   */
+  getPrinterCapabilities(printerName: string): PrinterCapabilitiesInfo;
   
   /**
    * Check if a printer exists
    */
   printerExists(printerName: string): boolean | Promise<boolean>;
-  
-  /**
-   * Get printer capabilities
-   */
-  getPrinterCapabilities(printerName: string): PrinterCapabilities | null | Promise<PrinterCapabilities | null>;
   
   /**
    * Open a printer handle (platform-specific)

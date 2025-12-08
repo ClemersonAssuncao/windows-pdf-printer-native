@@ -9,11 +9,10 @@ export { WindowsPrinterManagerAdapter } from './adapters/windows/windows-printer
 export { WindowsPrinterAdapter } from './adapters/windows/windows-printer.adapter';
 
 // Export unified types for backward compatibility
-export type { PrintOptions as WindowsPrintOptions } from './core/types';
-export type { PrinterInfo as WindowsPrinterInfo, PrinterCapabilities as WindowsPrinterCapabilities } from './core/types';
+export type { PrintOptions as WindowsPrintOptions, PrinterInfo as WindowsPrinterInfo } from './core/types';
 
 // Simple, clean facade API
-import type { PrintOptions, PrinterInfo } from './core/types';
+import type { PrintOptions, PrinterCapabilitiesInfo, PrinterInfo } from './core/types';
 import { PrinterFactory } from './factories/printer.factory';
 
 /**
@@ -72,10 +71,6 @@ export class PDFPrinter {
   getPrinterName(): string {
     return this.printer.getPrinterName();
   }
-  
-  async getCapabilities() {
-    return this.printer.getCapabilities();
-  }
 
   /**
    * Enable or disable page caching for PDF rendering
@@ -128,14 +123,15 @@ export class PrinterManager {
     const result = this.manager.getDefaultPrinter();
     return result instanceof Promise ? await result : result;
   }
+
+  static async getPrinterCapabilities(printerName: string): Promise<PrinterCapabilitiesInfo> {
+    const result = this.manager.getPrinterCapabilities(printerName);
+    return result instanceof Promise ? await result : result;
+  }
   
   static async printerExists(printerName: string): Promise<boolean> {
     const result = this.manager.printerExists(printerName);
     return result instanceof Promise ? await result : result;
-  }
-  
-  static getPrinterCapabilities(printerName: string) {
-    return this.manager.getPrinterCapabilities(printerName);
   }
   
   // Alias method

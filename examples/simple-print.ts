@@ -32,7 +32,9 @@ async function main() {
 
   try {
     console.time('Tempo de impressão');
-    await printer.print(pdfPath);
+    await printer.print(pdfPath, {
+      paperSize: 'A4',
+    });
     console.timeEnd('Tempo de impressão');
     console.log('✓ Print job sent successfully!');
   } catch (error) {
