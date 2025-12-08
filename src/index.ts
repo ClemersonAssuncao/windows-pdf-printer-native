@@ -9,11 +9,10 @@ export { WindowsPrinterManagerAdapter } from './adapters/windows/windows-printer
 export { WindowsPrinterAdapter } from './adapters/windows/windows-printer.adapter';
 
 // Export unified types for backward compatibility
-export type { PrintOptions as WindowsPrintOptions } from './core/types';
-export type { PrinterInfo as WindowsPrinterInfo, PrinterCapabilities as WindowsPrinterCapabilities } from './core/types';
+export type { PrintOptions as WindowsPrintOptions, PrinterInfo as WindowsPrinterInfo } from './core/types';
 
 // Simple, clean facade API
-import type { PrintOptions, PrinterInfo } from './core/types';
+import type { PrintOptions, PrinterCapabilitiesInfo, PrinterInfo } from './core/types';
 import { PrinterFactory } from './factories/printer.factory';
 
 /**
@@ -72,9 +71,34 @@ export class PDFPrinter {
   getPrinterName(): string {
     return this.printer.getPrinterName();
   }
-  
-  async getCapabilities() {
-    return this.printer.getCapabilities();
+
+  /**
+   * Enable or disable page caching for PDF rendering
+   * 
+   * Cache is enabled by default for better performance when printing multiple copies.
+   * Disable cache when printing many different PDFs to prevent memory buildup.
+   * 
+   * @param enabled - true to enable cache, false to disable
+   * 
+   * @example
+   * ```typescript
+   * const printer = new PDFPrinter();
+   * 
+   * // Disable cache when printing different PDFs sequentially
+   * printer.setCacheEnabled(false);
+   * await printer.print('./doc1.pdf');
+   * await printer.print('./doc2.pdf');
+   * await printer.print('./doc3.pdf');
+   * 
+   * // Enable cache when printing multiple copies of the same PDF
+   * printer.setCacheEnabled(true);
+   * await printer.print('./report.pdf', { copies: 10 });
+   * ```
+   */
+  setCacheEnabled(enabled: boolean): void {
+    if (this.printer.setCacheEnabled) {
+      this.printer.setCacheEnabled(enabled);
+    }
   }
 }
 
@@ -99,14 +123,15 @@ export class PrinterManager {
     const result = this.manager.getDefaultPrinter();
     return result instanceof Promise ? await result : result;
   }
+
+  static async getPrinterCapabilities(printerName: string): Promise<PrinterCapabilitiesInfo> {
+    const result = this.manager.getPrinterCapabilities(printerName);
+    return result instanceof Promise ? await result : result;
+  }
   
   static async printerExists(printerName: string): Promise<boolean> {
     const result = this.manager.printerExists(printerName);
     return result instanceof Promise ? await result : result;
-  }
-  
-  static getPrinterCapabilities(printerName: string) {
-    return this.manager.getPrinterCapabilities(printerName);
   }
   
   // Alias method

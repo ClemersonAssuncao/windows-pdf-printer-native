@@ -18,7 +18,8 @@
     "dev": "tsx",
     "example:simple": "tsx examples/simple-print.ts",
     "example:advanced": "tsx examples/advanced-print.ts",
-    "example:list": "tsx examples/list-printers.ts"
+    "example:list": "tsx examples/list-printers.ts",
+    "example:capabilities": "tsx examples/get-capabilities.ts"
   },
   "files": [
     "lib/**/*",

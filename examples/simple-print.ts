@@ -1,5 +1,5 @@
 // Simple printing example
-import { PDFPrinter, listPrinters, getDefaultPrinter } from '../src/index';
+import { PDFPrinter, listPrinters, getDefaultPrinter, PaperSize, PageOrientation, PrintQuality } from '../src/index';
 
 async function main() {
   console.log('=== Node PDF Printer - Simple Example ===\n');
@@ -22,18 +22,20 @@ async function main() {
   console.log(`Default printer: ${defaultPrinter}\n`);
 
   // Create printer instance (uses default printer)
-  const printer = new PDFPrinter('Microsoft Print to PDF');
+  const printer = new PDFPrinter();
   console.log(`Using printer: ${printer.getPrinterName()}\n`);
 
   // Print a PDF file with default settings
-  const pdfPath = './examples/teste-signed.pdf';
+  const pdfPath = './examples/test.pdf';
   console.log(`Printing: ${pdfPath}`);
   console.log('Options: Default settings');
 
   try {
     console.time('Tempo de impressão');
     await printer.print(pdfPath, {
-      showPrintDialog: true
+      // paperSize: PaperSize.A5,
+      // orientation: PageOrientation.LANDSCAPE,
+      // quality: PrintQuality.HIGH,
     });
     console.timeEnd('Tempo de impressão');
     console.log('✓ Print job sent successfully!');

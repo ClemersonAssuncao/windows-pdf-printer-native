@@ -305,8 +305,46 @@ export interface PrinterInfo {
   isDefault?: boolean;
 }
 
-export interface PrinterCapabilities {
+/**
+ * Paper size information with dimensions
+ */
+export interface PaperSizeInfo {
+  id: number;
+  name: string;
+  width: number;  // mm
+  height: number; // mm
+}
+
+/**
+ * Bin/Tray information
+ */
+export interface BinInfo {
+  id: number;
+  name: string;
+}
+
+/**
+ * Tray form assignment (bandeja com formato de papel atribuído)
+ */
+export interface TrayFormAssignment {
+  trayName: string;
+  trayId: number;
+  paperFormName: string;
+}
+
+/**
+ * Comprehensive printer capabilities information
+ */
+export interface PrinterCapabilitiesInfo {
+  paperSizes: PaperSizeInfo[];
+  minPaperSize: { width: number; height: number } | null;
+  maxPaperSize: { width: number; height: number } | null;
+  bins: BinInfo[];
+  binNames: string[];
+  paperNames: string[];
+  trayFormAssignments: TrayFormAssignment[];
   supportsDuplex: boolean;
-  supportsColor: boolean;
-  defaultPaperSize: PaperSize | number | string;
+  maxCopies: number;
+  mediaReady: string[];
+  mediaTypeNames: string[];
 }

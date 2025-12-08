@@ -1,24 +1,21 @@
 // Windows Printer Manager Adapter
 import type { IPrinterManager } from '../../core/interfaces';
-import { type PrinterInfo, type PrinterCapabilities, PaperSize } from '../../core/types';
 import {
   EnumPrintersW,
   GetDefaultPrinterW,
-  DocumentPropertiesW,
   PRINTER_ENUM_LOCAL,
   PRINTER_ENUM_CONNECTIONS,
-  PRINTER_INFO_2W,
-  DM_IN_BUFFER,
-  DM_OUT_BUFFER
+  PRINTER_INFO_2W
 } from './api';
-import { PrinterConnectionService } from './services/printer-connection.service';
+import { PrinterCapabilitiesService } from './services/printer-capabilities.service';
+import type { PrinterCapabilitiesInfo, PrinterInfo } from '../../core/types';
 import koffi from 'koffi';
 
 export class WindowsPrinterManagerAdapter implements IPrinterManager {
-  private connectionService: PrinterConnectionService;
+  private capabilitiesService: PrinterCapabilitiesService;
   
   constructor() {
-    this.connectionService = new PrinterConnectionService();
+    this.capabilitiesService = new PrinterCapabilitiesService();
   }
   getAvailablePrinters(): PrinterInfo[] {
     const printers: PrinterInfo[] = [];
@@ -86,23 +83,13 @@ export class WindowsPrinterManagerAdapter implements IPrinterManager {
     const printers = this.getAvailablePrinters();
     return printers.some(p => p.name.toLowerCase() === printerName.toLowerCase());
   }
-  
-  getPrinterCapabilities(printerName: string): PrinterCapabilities | null {
-    return this.connectionService.withPrinter(printerName, (hPrinter) => {
-      const devMode = [{}];
-      const result = DocumentPropertiesW(null, hPrinter, printerName, devMode, null, 0);
-      
-      if (result < 0) {
-        return null;
-      }
-      
-      const dm = devMode[0] as any;
-      
-      return {
-        supportsDuplex: dm.dmDuplex !== undefined && dm.dmDuplex > 0,
-        supportsColor: dm.dmColor !== undefined && dm.dmColor > 1,
-        defaultPaperSize: dm.dmPaperSize || PaperSize.A4
-      };
-    });
+
+  /**
+   * Get detailed printer capabilities including paper sizes, bins, duplex support, etc.
+   * @param printerName - Name of the printer to query
+   * @returns Comprehensive printer capabilities information
+   */
+  getPrinterCapabilities(printerName: string): PrinterCapabilitiesInfo {
+    return this.capabilitiesService.getCapabilities(printerName);
   }
 }

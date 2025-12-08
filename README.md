@@ -34,6 +34,8 @@ A **high-performance**, **native Windows PDF printing library** for Node.js usin
 - **GDI32 API** - Native Windows Graphics Device Interface for direct printer control
 - **PDFium** - Google's PDF rendering engine for high-quality bitmap generation
 - **Koffi FFI** - Zero-overhead C library bindings for Node.js
+- **Kernel32.dll** - Library used to error handling in the printer adapter
+- **Comdlg32.dll** - Windows common dialogs library for native print dialog support
 - **Windows Only** - Optimized exclusively for Windows printing (7, 10, 11, Server)
 
 ### 🎯 Type-Safe Enums
@@ -54,7 +56,6 @@ A **high-performance**, **native Windows PDF printing library** for Node.js usin
 ### 📊 Printer Management
 - **List Printers** - Enumerate all system printers with capabilities
 - **Default Printer** - Automatic detection and usage
-- **Capabilities Query** - Check duplex/color support, available paper sizes
 - **DEVMODE Configuration** - Direct Windows printer settings control
 
 ## Requirements
@@ -286,12 +287,6 @@ await printer.printRaw(pdfBuffer, 'Document', options);
 const name = printer.getPrinterName();
 ```
 
-**`getCapabilities(): PrinterCapabilities | null`**
-```typescript
-const caps = printer.getCapabilities();
-console.log(caps.supportsDuplex, caps.supportsColor);
-```
-
 #### `PrinterManager`
 
 **Static Methods:**
@@ -310,11 +305,6 @@ const defaultPrinter = await PrinterManager.getDefaultPrinter();
 **`printerExists(printerName: string): Promise<boolean>`**
 ```typescript
 const exists = await PrinterManager.printerExists('HP LaserJet');
-```
-
-**`getPrinterCapabilities(printerName: string): PrinterCapabilities | null`**
-```typescript
-const caps = PrinterManager.getPrinterCapabilities('MyPrinter');
 ```
 
 ### Interfaces
@@ -350,18 +340,6 @@ interface PrinterInfo {
 }
 ```
 
-#### `PrinterCapabilities`
-
-```typescript
-interface PrinterCapabilities {
-  supportsDuplex: boolean;
-  supportsColor: boolean;
-  defaultPaperSize: PaperSize | number;
-  availablePaperSizes: (PaperSize | number)[];
-  availablePaperSources: number[];
-}
-```
-
 ## Performance
 
 ### Benchmark Results
@@ -385,8 +363,32 @@ interface PrinterCapabilities {
 1. **Use MEDIUM quality (300 DPI)** for documents - perfect balance
 2. **Use LOW quality (150 DPI)** for drafts - 2x faster
 3. **Use HIGH quality (600 DPI)** only for images/photos
-4. **Enable page caching** for multiple copies (automatic)
-5. **Batch printing** - reuse printer instance for multiple jobs
+4. **Page caching** - enabled by default, renders once and reuses for multiple copies
+5. **Disable cache** when printing many different PDFs to prevent memory buildup
+6. **Batch printing** - reuse printer instance for multiple jobs
+
+### Cache Management
+
+Page caching is **enabled by default** for optimal performance when printing multiple copies. The cache is automatically cleared when closing a PDF document.
+
+```typescript
+const printer = new PDFPrinter();
+
+// Scenario 1: Printing multiple copies - keep cache enabled (default)
+await printer.print('./report.pdf', { copies: 10 });
+// ✓ Pages rendered once, cached, and reused for all 10 copies
+
+// Scenario 2: Printing different PDFs - consider disabling cache
+printer.setCacheEnabled(false);
+for (let i = 1; i <= 100; i++) {
+  await printer.print(`./invoice-${i}.pdf`);
+}
+// ✓ No cache buildup, memory efficient for sequential printing
+
+// Scenario 3: Re-enable cache for next job
+printer.setCacheEnabled(true);
+await printer.print('./another-doc.pdf', { copies: 5 });
+```
 
 ## Examples
 
@@ -479,12 +481,6 @@ const printers = await PrinterManager.getAvailablePrinters();
 
 printers.forEach(printer => {
   console.log(`${printer.name}${printer.isDefault ? ' (DEFAULT)' : ''}`);
-  
-  const capabilities = PrinterManager.getPrinterCapabilities(printer.name);
-  if (capabilities) {
-    console.log(`  Duplex: ${capabilities.supportsDuplex}`);
-    console.log(`  Color: ${capabilities.supportsColor}`);
-  }
 });
 ```
 
@@ -510,16 +506,6 @@ console.log(printers);
 - Try printing a test page from Windows Settings to confirm functionality
 - Check Windows Event Viewer for detailed error messages
 
-#### Duplex not working
-
-Not all printers support duplex printing. Check capabilities:
-
-```typescript
-const printer = new PDFPrinter();
-const capabilities = await printer.getCapabilities();
-console.log('Duplex supported:', capabilities?.supportsDuplex);
-```
-
 #### PDF not rendering correctly
 
 This library renders PDF to bitmap using PDFium and sends it via GDI:
@@ -544,9 +530,11 @@ For Unix/Linux/macOS printing, we recommend using [unix-print](https://www.npmjs
 
 ### Windows Requirements
 - **Windows 7 or later** (Windows 10/11 recommended)
-- **GDI32.dll** (included with Windows)
-- **Winspool.drv** (included with Windows)
-- **PDFium library** (pdfium.dll)
+- **GDI32.dll** - Graphics Device Interface for rendering and bitmap operations (included with Windows)
+- **Winspool.drv** - Windows spooler driver for printer management and job control (included with Windows)
+- **Kernel32.dll** - Library used to error handling in the printer adapter (included with Windows)
+- **Comdlg32.dll** - Common dialogs API for native Windows print dialog (included with Windows)
+- **PDFium library** - Google's PDF rendering engine (pdfium.dll, included in package)
 
 ### How It Works
 
