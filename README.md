@@ -34,7 +34,7 @@ A **high-performance**, **native Windows PDF printing library** for Node.js usin
 - **GDI32 API** - Native Windows Graphics Device Interface for direct printer control
 - **PDFium** - Google's PDF rendering engine for high-quality bitmap generation
 - **Koffi FFI** - Zero-overhead C library bindings for Node.js
-- **Kernel32.dll** - Windows system library for memory management and error handling
+- **Kernel32.dll** - Library used to error handling in the printer adapter
 - **Comdlg32.dll** - Windows common dialogs library for native print dialog support
 - **Windows Only** - Optimized exclusively for Windows printing (7, 10, 11, Server)
 
@@ -548,7 +548,7 @@ For Unix/Linux/macOS printing, we recommend using [unix-print](https://www.npmjs
 - **Windows 7 or later** (Windows 10/11 recommended)
 - **GDI32.dll** - Graphics Device Interface for rendering and bitmap operations (included with Windows)
 - **Winspool.drv** - Windows spooler driver for printer management and job control (included with Windows)
-- **Kernel32.dll** - Core Windows API for memory allocation, error codes, and system operations (included with Windows)
+- **Kernel32.dll** - Library used to error handling in the printer adapter (included with Windows)
 - **Comdlg32.dll** - Common dialogs API for native Windows print dialog (included with Windows)
 - **PDFium library** - Google's PDF rendering engine (pdfium.dll, included in package)
 
