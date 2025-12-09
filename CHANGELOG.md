@@ -5,6 +5,118 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2025-12-08
+
+### ✨ New Features
+
+**Structured Logging System**
+- Added comprehensive `Logger` class with multiple log levels (DEBUG, INFO, WARN, ERROR, SILENT)
+- Configurable logging via environment variables:
+  - `LOG_LEVEL`: Set specific level (DEBUG, INFO, WARN, ERROR, SILENT)
+  - `DEBUG`: Enable debug mode (supports `DEBUG=*`, `DEBUG=1`, `DEBUG=true`)
+  - `NODE_ENV`: Auto-configures level (test=SILENT, production=INFO)
+- Performance timing utilities with `startTimer()` and `endTimer()`
+- Colored terminal output with automatic TTY detection
+- Context-based logging for better organization (e.g., `[PdfRender]`, `[DevModeConfig]`)
+- Timestamps with millisecond precision
+- Child logger support for hierarchical contexts
+
+**Cache Management API**
+- Exposed `setCacheEnabled(enabled: boolean)` method in `PDFPrinter` class
+- Allows users to control page caching behavior:
+  - Keep enabled (default) for multiple copies of same PDF
+  - Disable for sequential printing of different PDFs to prevent memory buildup
+- Automatic cache cleanup when PDF document is closed
+
+**Enhanced Printer Capabilities**
+- New `PrinterCapabilitiesService` for comprehensive printer information
+- Added `getPrinterInfo()` method for detailed printer metadata:
+  - Current paper size and orientation
+  - Available paper sources (trays)
+  - Print quality settings
+  - Color capabilities
+  - Duplex support and modes
+  - Printer status and job counts
+- Extended `PrinterCapabilities` interface with additional properties
+
+### 🔧 Improvements
+
+**Code Quality**
+- Refactored all services to use structured Logger:
+  - `PdfRenderService`: Performance metrics, cache operations, error tracking
+  - `DevModeConfigService`: DEVMODE configuration steps, printer interactions
+  - `WindowsPrinterAdapter`: Print job lifecycle, document processing
+- Replaced manual `process.env.DEBUG` checks with logger methods
+- Replaced `performance.now()` calculations with logger timers
+- Enhanced error messages with contextual information
+
+**Performance Monitoring**
+- Detailed timing logs for all major operations:
+  - PDFium initialization and module loading
+  - PDF document loading and page counting
+  - Page rendering and bitmap creation
+  - Device context creation
+  - Print job stages (StartDoc, StartPage, EndPage, EndDoc)
+- Automatic cache hit/miss tracking with timing
+
+**Memory Management**
+- Automatic cache cleanup on document close (prevents memory leaks)
+- Smart cache key management (page index + dimensions)
+- Proper bitmap lifecycle tracking and cleanup
+
+**API Documentation**
+- Added comprehensive JSDoc comments for Logger class
+- Documented cache management best practices in README
+- Added usage examples for `setCacheEnabled()`
+- Updated README with Kernel32.dll and Comdlg32.dll descriptions
+
+### 🐛 Bug Fixes
+
+**Cache Memory Leak**
+- Fixed cache growing indefinitely when printing multiple different PDFs
+- Cache now automatically clears when document is closed
+- Added manual control via `setCacheEnabled(false)` for sequential printing
+
+**Thermal Printer Support**
+- Fixed document stretching issue on thermal printers
+- Improved aspect ratio calculation for non-standard paper sizes
+- Better handling of narrow paper formats (e.g., 80mm thermal rolls)
+- Proper scaling and centering for thermal receipt printers
+
+**Logging Consistency**
+- Removed inconsistent debug log formatting
+- Standardized all log messages across services
+- Fixed missing context in error messages
+
+### 📚 Documentation
+
+**README Updates**
+- Added explanation of Kernel32.dll usage (memory management, error handling)
+- Added explanation of Comdlg32.dll usage (native print dialog support)
+- Documented cache management strategies with code examples
+- Added optimization tips for cache usage
+- Updated Core Technology section with all system dependencies
+
+**API Reference**
+- Added `setCacheEnabled()` method documentation
+- Enhanced `PrinterCapabilities` interface documentation
+- Added Logger configuration examples
+
+### 🏗️ Architecture
+
+**New Components**
+- `src/core/logger/logger.ts`: Main Logger implementation
+- `src/core/logger/types.d.ts`: Global type definitions for Node.js
+- `src/core/logger/index.ts`: Logger module exports
+- `src/adapters/windows/services/printer-capabilities.service.ts`: Enhanced capabilities service
+
+**Removed Components**
+- `src/adapters/windows/services/printer-connection.service.ts`: Functionality merged into other services
+
+### 🔄 Breaking Changes
+
+None - All changes are backward compatible
+
 ## [2.0.2] - 2025-12-03
 
 ### 🔧 Fixed
