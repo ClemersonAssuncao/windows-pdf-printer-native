@@ -4,20 +4,24 @@
 
 import { PrintDialogService, type PrintDialogResult } from '../../src/adapters/windows/services/print-dialog.service';
 import * as comdlg32Api from '../../src/adapters/windows/api/comdlg32.api';
+import * as kernel32Api from '../../src/adapters/windows/api/kernel32.api';
 import type { PrintOptions } from '../../src/core/types';
 
 // Mock the Windows API
 jest.mock('../../src/adapters/windows/api/comdlg32.api', () => ({
   PrintDlgW: jest.fn(),
-  GlobalAlloc: jest.fn(),
-  GlobalFree: jest.fn(),
-  GlobalLock: jest.fn(),
-  GlobalUnlock: jest.fn(),
-  GHND: 0x0042,
   PD_RETURNDC: 0x00000100,
   PD_ALLPAGES: 0x00000000,
   PD_USEDEVMODECOPIESANDCOLLATE: 0x00040000,
   PD_PAGENUMS: 0x00000002
+}));
+
+jest.mock('../../src/adapters/windows/api/kernel32.api', () => ({
+  GlobalAlloc: jest.fn(),
+  GlobalFree: jest.fn(),
+  GlobalLock: jest.fn(),
+  GlobalUnlock: jest.fn(),
+  GHND: 0x0042
 }));
 
 // Mock koffi
@@ -33,18 +37,18 @@ jest.mock('koffi', () => ({
 describe('PrintDialogService', () => {
   let service: PrintDialogService;
   let mockPrintDlgW: jest.MockedFunction<typeof comdlg32Api.PrintDlgW>;
-  let mockGlobalAlloc: jest.MockedFunction<typeof comdlg32Api.GlobalAlloc>;
-  let mockGlobalFree: jest.MockedFunction<typeof comdlg32Api.GlobalFree>;
-  let mockGlobalLock: jest.MockedFunction<typeof comdlg32Api.GlobalLock>;
-  let mockGlobalUnlock: jest.MockedFunction<typeof comdlg32Api.GlobalUnlock>;
+  let mockGlobalAlloc: jest.MockedFunction<typeof kernel32Api.GlobalAlloc>;
+  let mockGlobalFree: jest.MockedFunction<typeof kernel32Api.GlobalFree>;
+  let mockGlobalLock: jest.MockedFunction<typeof kernel32Api.GlobalLock>;
+  let mockGlobalUnlock: jest.MockedFunction<typeof kernel32Api.GlobalUnlock>;
 
   beforeEach(() => {
     service = new PrintDialogService();
     mockPrintDlgW = comdlg32Api.PrintDlgW as jest.MockedFunction<typeof comdlg32Api.PrintDlgW>;
-    mockGlobalAlloc = comdlg32Api.GlobalAlloc as jest.MockedFunction<typeof comdlg32Api.GlobalAlloc>;
-    mockGlobalFree = comdlg32Api.GlobalFree as jest.MockedFunction<typeof comdlg32Api.GlobalFree>;
-    mockGlobalLock = comdlg32Api.GlobalLock as jest.MockedFunction<typeof comdlg32Api.GlobalLock>;
-    mockGlobalUnlock = comdlg32Api.GlobalUnlock as jest.MockedFunction<typeof comdlg32Api.GlobalUnlock>;
+    mockGlobalAlloc = kernel32Api.GlobalAlloc as jest.MockedFunction<typeof kernel32Api.GlobalAlloc>;
+    mockGlobalFree = kernel32Api.GlobalFree as jest.MockedFunction<typeof kernel32Api.GlobalFree>;
+    mockGlobalLock = kernel32Api.GlobalLock as jest.MockedFunction<typeof kernel32Api.GlobalLock>;
+    mockGlobalUnlock = kernel32Api.GlobalUnlock as jest.MockedFunction<typeof kernel32Api.GlobalUnlock>;
     jest.clearAllMocks();
   });
 
@@ -243,7 +247,7 @@ describe('PrintDialogService', () => {
 
       service.showPrintDialog('MyPrinter');
 
-      expect(mockGlobalAlloc).toHaveBeenCalledWith(comdlg32Api.GHND, expect.any(Number));
+      expect(mockGlobalAlloc).toHaveBeenCalledWith(kernel32Api.GHND, expect.any(Number));
       expect(mockGlobalLock).toHaveBeenCalledWith(mockHDevNames);
       expect(mockGlobalUnlock).toHaveBeenCalledWith(mockHDevNames);
     });

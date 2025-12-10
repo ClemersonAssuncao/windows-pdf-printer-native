@@ -6,13 +6,15 @@ import {
   PD_RETURNDC,
   PD_ALLPAGES,
   PD_USEDEVMODECOPIESANDCOLLATE,
-  PD_PAGENUMS,
+  PD_PAGENUMS
+} from '../api/comdlg32.api';
+import {
   GlobalAlloc,
   GlobalFree,
   GlobalLock,
   GlobalUnlock,
   GHND
-} from '../api/comdlg32.api';
+} from '../api/kernel32.api';
 import type { PrintOptions } from '../../../core/types';
 
 const Buffer = buffer.Buffer;
