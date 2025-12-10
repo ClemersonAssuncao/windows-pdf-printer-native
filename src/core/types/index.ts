@@ -225,7 +225,21 @@ export enum PaperTray {
 }
 
 export interface PrintOptions {
+
+  /**
+   * Printer name to use for printing
+   * This parameter skip the printer existence validation.
+   * You can instance in the PDFPrinter constructor directly for validate the printer.
+   * 
+   * @example
+   * const printer = new PDFPrinter('My Printer Name');
+   */
   printer?: string;
+
+  /**
+   * Number of copies to print
+   * @default 1
+   */
   copies?: number;
   /**
    * Duplex (double-sided) printing mode

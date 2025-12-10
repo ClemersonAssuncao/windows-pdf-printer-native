@@ -3,7 +3,6 @@ import koffi from 'koffi';
 import * as buffer from 'buffer';
 import {
   PrintDlgW,
-  PRINTDLGW,
   PD_RETURNDC,
   PD_ALLPAGES,
   PD_USEDEVMODECOPIESANDCOLLATE,
