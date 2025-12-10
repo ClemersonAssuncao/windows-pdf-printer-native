@@ -277,6 +277,19 @@ export interface PrintOptions {
    * - ColorMode.COLOR - Color printing
    */
   color?: ColorMode;
+  /**
+   * Collate copies when printing multiple copies
+   * When true, prints complete sets in sequence (1,2,3,1,2,3)
+   * When false, prints all copies of each page together (1,1,2,2,3,3)
+   * @default false
+   * 
+   * @example
+   * // Print 3 collated copies (1,2,3,1,2,3,1,2,3)
+   * await printer.print('./document.pdf', { copies: 3, collate: true });
+   * 
+   * // Print 3 non-collated copies (1,1,1,2,2,2,3,3,3)
+   * await printer.print('./document.pdf', { copies: 3, collate: false });
+   */
   collate?: boolean;
   /**
    * Print quality for PDF to bitmap rendering

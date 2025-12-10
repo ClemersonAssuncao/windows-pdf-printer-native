@@ -12,7 +12,8 @@ import {
   DM_PAPERSIZE,
   DM_DUPLEX,
   DM_COLOR,
-  DM_DEFAULTSOURCE
+  DM_DEFAULTSOURCE,
+  DM_COLLATE
 } from '../api';
 
 export class DevModeConfigService {
@@ -96,6 +97,18 @@ export class DevModeConfigService {
         dm.dmColor = options.color;
         fieldsToModify |= DM_COLOR;
         this.logger.debug(`Setting dmColor = ${options.color} (1=MONOCHROME, 2=COLOR)`);
+      }
+
+      // Note: We do NOT set dmCopies here because copies are handled by the manual loop
+      // in WindowsPrinterAdapter to maintain compatibility with the cache system.
+      // Setting dmCopies would cause copies to multiply (manual loop × DEVMODE copies).
+
+      // Apply collate setting
+      if (options.collate !== undefined) {
+        // DMCOLLATE_TRUE = 1, DMCOLLATE_FALSE = 0
+        dm.dmCollate = options.collate ? 1 : 0;
+        fieldsToModify |= DM_COLLATE;
+        this.logger.debug(`Setting dmCollate = ${dm.dmCollate} (${options.collate ? 'TRUE' : 'FALSE'})`);
       }
 
       // STEP 4: Update dmFields to include all fields we want to modify
