@@ -217,7 +217,7 @@ export class WindowsPrinterAdapter implements IPrinter {
             }
             
             // Handle copies with respect to collate option
-            const collate = finalOptions?.collate !== false; // Default to true if not specified
+            const collate = finalOptions?.collate === true; // Default to false if not specified
             
             if (collate) {
               // COLLATE = TRUE: Print complete sets (page1, page2, page3, page1, page2, page3)
