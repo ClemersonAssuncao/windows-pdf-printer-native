@@ -5,6 +5,66 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.1] - 2025-12-10
+
+### 🐛 Bug Fixes
+
+**Multiple Copies Printing**
+- Fixed critical bug where multiple copies would not print correctly
+- Implemented intelligent cache disabling for uncollated multi-copy jobs
+- Prevents GDI buffer corruption when printing multiple copies without collate
+- Cache is automatically disabled for `copies > 1 && collate = false`
+- Cache state is restored after print job completion
+
+**Collate Parameter**
+- Fixed collate option not being respected in print jobs
+- Properly handles collated vs uncollated printing:
+  - Collate enabled: Prints complete sets (page1, page2, page3, page1, page2, page3)
+  - Collate disabled: Prints all copies of each page (page1, page1, page2, page2, page3, page3)
+- Added proper logging for collate mode detection
+
+**Koffi Cache Isolation**
+- Fixed global koffi cache causing conflicts between modules
+- Each API module now has its own isolated koffi instance
+- Prevents function signature collisions across different DLLs
+- Improved stability when loading multiple Windows API libraries
+
+### 🔧 Improvements
+
+**Code Quality & Clean Code**
+- Removed unnecessary validations across all adapters
+- Cleaned up redundant code in Windows adapters
+- Improved error handling consistency
+- Better separation of concerns in service classes
+- Enhanced code readability with better variable naming
+
+**Architecture Simplification**
+- Removed `src/factories/printer.factory.ts` (no longer needed)
+- Simplified dependency injection pattern
+- Direct adapter instantiation for cleaner code flow
+
+### 📚 Documentation
+
+**Updated Documentation**
+- Comprehensive update to `CONTRIBUTING.md` with current architecture
+- Updated `ARCHITECTURE.md` with intelligent caching strategy
+- Added detailed explanation of cache management
+- Documented collate behavior and copy handling
+- Updated project structure to reflect removed factory
+- Added examples for testing print queues
+- Improved logging configuration documentation
+
+**Architecture Documentation**
+- Documented GDI buffer corruption prevention strategy
+- Added workflow diagrams for copy and collate handling
+- Performance optimization strategies documented
+- Memory management best practices updated
+
+### 🧹 Removed
+
+- Removed `src/factories/printer.factory.ts` (unused factory pattern)
+- Removed redundant validation checks that were duplicating error handling
+
 ## [2.1.0] - 2025-12-08
 
 ### ✨ New Features
