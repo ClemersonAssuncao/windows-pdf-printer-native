@@ -15,6 +15,15 @@ export class WindowsPrinterManagerAdapter implements IPrinterManager {
   private capabilitiesService: PrinterCapabilitiesService;
   
   constructor() {
+    // Validate Windows platform early - fail fast
+    if (process.platform !== 'win32') {
+      throw new Error(
+        `Windows PDF Printer Native only supports Windows platform. ` +
+        `Current platform: ${process.platform}. ` +
+        `For Unix/Linux/macOS printing, please use: https://www.npmjs.com/package/unix-print`
+      );
+    }
+    
     this.capabilitiesService = new PrinterCapabilitiesService();
   }
   getAvailablePrinters(): PrinterInfo[] {

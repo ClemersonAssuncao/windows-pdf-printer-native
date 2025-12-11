@@ -21,7 +21,7 @@ async function main() {
   const defaultPrinter = await getDefaultPrinter();
   console.log(`Default printer: ${defaultPrinter}\n`);
 
-  // Create printer instance (uses default printer)
+  // Create printer instance (uses default printer if no name is provided)
   const printer = new PDFPrinter();
   console.log(`Using printer: ${printer.getPrinterName()}\n`);
 

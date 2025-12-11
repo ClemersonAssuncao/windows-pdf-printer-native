@@ -1,5 +1,5 @@
 // Example to list all printers and their capabilities
-import { listPrinters, PrinterManager } from '../src/index';
+import { listPrinters } from '../src/index';
 
 async function main() {
   console.log('=== Available Printers ===\n');

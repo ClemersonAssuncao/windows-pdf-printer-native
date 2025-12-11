@@ -1,7 +1,6 @@
 // Clean Architecture Entry Point
 export * from './core/types';
 export * from './core/interfaces';
-export { PrinterFactory } from './factories/printer.factory';
 export { PrintQuality, PaperSize, DuplexMode, PageOrientation, ColorMode, PaperTray } from './core/types';
 
 // Re-export platform-specific implementations for backward compatibility
@@ -11,9 +10,10 @@ export { WindowsPrinterAdapter } from './adapters/windows/windows-printer.adapte
 // Export unified types for backward compatibility
 export type { PrintOptions as WindowsPrintOptions, PrinterInfo as WindowsPrinterInfo } from './core/types';
 
+import { WindowsPrinterManagerAdapter } from './adapters/windows/windows-printer-manager.adapter';
+import { WindowsPrinterAdapter } from './adapters/windows/windows-printer.adapter';
 // Simple, clean facade API
 import type { PrintOptions, PrinterCapabilitiesInfo, PrinterInfo } from './core/types';
-import { PrinterFactory } from './factories/printer.factory';
 
 /**
  * Windows PDFPrinter with GDI and PDFium rendering
@@ -41,8 +41,7 @@ export class PDFPrinter {
   private printer: any;
   
   constructor(printerName?: string) {
-    // Direct instantiation - validation happens in platform-specific implementations
-    this.printer = PrinterFactory.createPrinter(printerName);
+    this.printer = new WindowsPrinterAdapter(printerName);
   }
   
   /**
@@ -51,7 +50,7 @@ export class PDFPrinter {
   static async create(printerName?: string): Promise<PDFPrinter> {
     // Validate printer exists if name provided
     if (printerName) {
-      const manager = PrinterFactory.createPrinterManager();
+      const manager = new WindowsPrinterManagerAdapter();
       const exists = await manager.printerExists(printerName);
       if (!exists) {
         throw new Error(`Printer not found: ${printerName}`);
@@ -112,7 +111,7 @@ export class PDFPrinter {
  * ```
  */
 export class PrinterManager {
-  private static manager = PrinterFactory.createPrinterManager();
+  private static manager = new WindowsPrinterManagerAdapter();
   
   static async getAvailablePrinters(): Promise<PrinterInfo[]> {
     const result = this.manager.getAvailablePrinters();
@@ -120,8 +119,7 @@ export class PrinterManager {
   }
   
   static async getDefaultPrinter(): Promise<string | null> {
-    const result = this.manager.getDefaultPrinter();
-    return result instanceof Promise ? await result : result;
+    return this.manager.getDefaultPrinter();
   }
 
   static async getPrinterCapabilities(printerName: string): Promise<PrinterCapabilitiesInfo> {
@@ -130,8 +128,7 @@ export class PrinterManager {
   }
   
   static async printerExists(printerName: string): Promise<boolean> {
-    const result = this.manager.printerExists(printerName);
-    return result instanceof Promise ? await result : result;
+    return this.manager.printerExists(printerName);
   }
   
   // Alias method
