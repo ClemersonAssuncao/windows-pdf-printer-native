@@ -1,30 +1,25 @@
 // Windows GDI32 API - Graphics Device Interface
 import koffi from 'koffi';
-import * as os from 'os';
 
-// Only load Windows DLLs on Windows platform
-const isWindows = os.platform() === 'win32';
-const gdi32 = isWindows ? koffi.load('gdi32.dll') : null as any;
+// Load GDI32.dll (Windows Graphics Device Interface)
+const gdi32 = koffi.load('gdi32.dll');
 
-// Global cache to store Koffi structures
-const structCache = (globalThis as any).__koffi_struct_cache__ || {};
-if (!(globalThis as any).__koffi_struct_cache__) {
-  (globalThis as any).__koffi_struct_cache__ = structCache;
-}
+// Local cache to store Koffi structures (isolated per module)
+const structCache = new Map<string, any>();
 
 // Helper to create or reuse Koffi structures
 function defineStruct(name: string, definition: any) {
-  if (structCache[name]) {
-    return structCache[name];
+  if (structCache.has(name)) {
+    return structCache.get(name);
   }
   
   try {
     const struct = koffi.struct(name, definition);
-    structCache[name] = struct;
+    structCache.set(name, struct);
     return struct;
   } catch (error: any) {
-    if (error?.message?.includes('Duplicate type name')) {
-      structCache[name] = name;
+    if (error  .message  .includes('Duplicate type name')) {
+      // If Koffi already has this struct definition, use the name directly
       return name;
     }
     throw error;
@@ -110,39 +105,39 @@ export const GDI_DOCINFOW = defineStruct('GDI_DOCINFOW', {
 });
 
 // GDI Device Context functions
-export const CreateDCW = isWindows 
-  ? gdi32.func('CreateDCW', 'void*', ['str16', 'str16', 'str16', koffi.pointer(DEVMODEW)])
-  : (() => { throw new Error('Windows API not available on this platform'); }) as any;
+export const CreateDCW =
+  gdi32.func('CreateDCW', 'void*', ['str16', 'str16', 'str16', koffi.pointer(DEVMODEW)])
+;
 
-export const DeleteDC = isWindows 
-  ? gdi32.func('DeleteDC', 'bool', ['void*'])
-  : (() => { throw new Error('Windows API not available on this platform'); }) as any;
+export const DeleteDC =
+  gdi32.func('DeleteDC', 'bool', ['void*'])
+;
 
 // GDI Printing functions
-export const StartDocW = isWindows 
-  ? gdi32.func('StartDocW', 'int', ['void*', koffi.pointer(GDI_DOCINFOW)])
-  : (() => { throw new Error('Windows API not available on this platform'); }) as any;
+export const StartDocW =
+  gdi32.func('StartDocW', 'int', ['void*', koffi.pointer(GDI_DOCINFOW)])
+;
 
-export const EndDoc = isWindows 
-  ? gdi32.func('EndDoc', 'int', ['void*'])
-  : (() => { throw new Error('Windows API not available on this platform'); }) as any;
+export const EndDoc =
+  gdi32.func('EndDoc', 'int', ['void*'])
+;
 
-export const StartPage = isWindows 
-  ? gdi32.func('StartPage', 'int', ['void*'])
-  : (() => { throw new Error('Windows API not available on this platform'); }) as any;
+export const StartPage =
+  gdi32.func('StartPage', 'int', ['void*'])
+;
 
-export const EndPage = isWindows 
-  ? gdi32.func('EndPage', 'int', ['void*'])
-  : (() => { throw new Error('Windows API not available on this platform'); }) as any;
+export const EndPage =
+  gdi32.func('EndPage', 'int', ['void*'])
+;
 
-export const AbortDoc = isWindows 
-  ? gdi32.func('AbortDoc', 'int', ['void*'])
-  : (() => { throw new Error('Windows API not available on this platform'); }) as any;
+export const AbortDoc =
+  gdi32.func('AbortDoc', 'int', ['void*'])
+;
 
 // Device Capabilities
-export const GetDeviceCaps = isWindows 
-  ? gdi32.func('GetDeviceCaps', 'int', ['void*', 'int'])
-  : (() => { throw new Error('Windows API not available on this platform'); }) as any;
+export const GetDeviceCaps =
+  gdi32.func('GetDeviceCaps', 'int', ['void*', 'int'])
+;
 
 // Device Capabilities constants
 export const HORZRES = 8;          // Horizontal width in pixels
@@ -176,8 +171,8 @@ export const BI_RGB = 0;
 export const DIB_RGB_COLORS = 0;
 
 // Bitmap transfer functions
-export const SetDIBitsToDevice = isWindows
-  ? gdi32.func('SetDIBitsToDevice', 'int', [
+export const SetDIBitsToDevice =
+  gdi32.func('SetDIBitsToDevice', 'int', [
       'void*',   // hdc
       'int',     // xDest
       'int',     // yDest
@@ -191,10 +186,10 @@ export const SetDIBitsToDevice = isWindows
       'void*',   // lpbmi
       'uint32'   // ColorUse
     ])
-  : (() => { throw new Error('Windows API not available on this platform'); }) as any;
+;
 
-export const StretchDIBits = isWindows
-  ? gdi32.func('StretchDIBits', 'int', [
+export const StretchDIBits =
+  gdi32.func('StretchDIBits', 'int', [
       'void*',   // hdc
       'int',     // xDest
       'int',     // yDest
@@ -209,10 +204,10 @@ export const StretchDIBits = isWindows
       'uint32',  // iUsage (DIB_RGB_COLORS)
       'uint32'   // rop (SRCCOPY)
     ])
-  : (() => { throw new Error('Windows API not available on this platform'); }) as any;
+;
 
-export const BitBlt = isWindows
-  ? gdi32.func('BitBlt', 'bool', [
+export const BitBlt =
+  gdi32.func('BitBlt', 'bool', [
       'void*',   // hdcDest
       'int',     // x
       'int',     // y
@@ -223,7 +218,7 @@ export const BitBlt = isWindows
       'int',     // y1
       'uint32'   // rop
     ])
-  : (() => { throw new Error('Windows API not available on this platform'); }) as any;
+;
 
 // Raster operation codes
 export const SRCCOPY = 0x00CC0020;
@@ -251,33 +246,33 @@ export const ENHMETAHEADER = defineStruct('ENHMETAHEADER', {
   szlMicrometers: koffi.array('int32', 2)
 });
 
-export const GetEnhMetaFileW = isWindows
-  ? gdi32.func('GetEnhMetaFileW', 'void*', ['str16'])
-  : (() => { throw new Error('Windows API not available on this platform'); }) as any;
+export const GetEnhMetaFileW =
+  gdi32.func('GetEnhMetaFileW', 'void*', ['str16'])
+;
 
-export const PlayEnhMetaFile = isWindows
-  ? gdi32.func('PlayEnhMetaFile', 'bool', ['void*', 'void*', koffi.pointer(koffi.array('int32', 4))])
-  : (() => { throw new Error('Windows API not available on this platform'); }) as any;
+export const PlayEnhMetaFile =
+  gdi32.func('PlayEnhMetaFile', 'bool', ['void*', 'void*', koffi.pointer(koffi.array('int32', 4))])
+;
 
-export const DeleteEnhMetaFile = isWindows
-  ? gdi32.func('DeleteEnhMetaFile', 'bool', ['void*'])
-  : (() => { throw new Error('Windows API not available on this platform'); }) as any;
+export const DeleteEnhMetaFile =
+  gdi32.func('DeleteEnhMetaFile', 'bool', ['void*'])
+;
 
-export const GetEnhMetaFileHeader = isWindows
-  ? gdi32.func('GetEnhMetaFileHeader', 'uint32', ['void*', 'uint32', koffi.out(koffi.pointer(ENHMETAHEADER))])
-  : (() => { throw new Error('Windows API not available on this platform'); }) as any;
+export const GetEnhMetaFileHeader =
+  gdi32.func('GetEnhMetaFileHeader', 'uint32', ['void*', 'uint32', koffi.out(koffi.pointer(ENHMETAHEADER))])
+;
 
-export const SetMapMode = isWindows
-  ? gdi32.func('SetMapMode', 'int', ['void*', 'int'])
-  : (() => { throw new Error('Windows API not available on this platform'); }) as any;
+export const SetMapMode =
+  gdi32.func('SetMapMode', 'int', ['void*', 'int'])
+;
 
-export const SetViewportOrgEx = isWindows
-  ? gdi32.func('SetViewportOrgEx', 'bool', ['void*', 'int', 'int', 'void*'])
-  : (() => { throw new Error('Windows API not available on this platform'); }) as any;
+export const SetViewportOrgEx =
+  gdi32.func('SetViewportOrgEx', 'bool', ['void*', 'int', 'int', 'void*'])
+;
 
-export const SetViewportExtEx = isWindows
-  ? gdi32.func('SetViewportExtEx', 'bool', ['void*', 'int', 'int', 'void*'])
-  : (() => { throw new Error('Windows API not available on this platform'); }) as any;
+export const SetViewportExtEx =
+  gdi32.func('SetViewportExtEx', 'bool', ['void*', 'int', 'int', 'void*'])
+;
 
 // Map modes for coordinate mapping
 export const MM_TEXT = 1;

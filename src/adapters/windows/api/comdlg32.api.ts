@@ -1,30 +1,25 @@
 // Windows Common Dialog API - Print Dialog functions
 import koffi from 'koffi';
-import * as os from 'os';
 
-// Only load Windows DLLs on Windows platform
-const isWindows = os.platform() === 'win32';
-const comdlg32 = isWindows ? koffi.load('comdlg32.dll') : null as any;
+// Load Comdlg32.dll (Windows Common Dialogs)
+const comdlg32 = koffi.load('comdlg32.dll');
 
-// Global cache to store Koffi structures
-const structCache = (globalThis as any).__koffi_struct_cache__ || {};
-if (!(globalThis as any).__koffi_struct_cache__) {
-  (globalThis as any).__koffi_struct_cache__ = structCache;
-}
+// Local cache to store Koffi structures (isolated per module)
+const structCache = new Map<string, any>();
 
 // Helper to create or reuse Koffi structures
 function defineStruct(name: string, definition: any) {
-  if (structCache[name]) {
-    return structCache[name];
+  if (structCache.has(name)) {
+    return structCache.get(name);
   }
   
   try {
     const struct = koffi.struct(name, definition);
-    structCache[name] = struct;
+    structCache.set(name, struct);
     return struct;
   } catch (error: any) {
     if (error?.message?.includes('Duplicate type name')) {
-      structCache[name] = name;
+      // If Koffi already has this struct definition, use the name directly
       return name;
     }
     throw error;
@@ -96,41 +91,6 @@ export const DEVNAMES = defineStruct('DEVNAMES', {
  * Display Windows Print Dialog
  * Returns true if user clicked OK, false if user clicked Cancel
  */
-export const PrintDlgW = isWindows 
-  ? comdlg32.func('PrintDlgW', 'bool', [
-      koffi.inout(koffi.pointer(PRINTDLGW))  // lppd
-    ])
-  : (() => { throw new Error('Windows API not available on this platform'); }) as any;
-
-/**
- * Allocate global memory handle
- */
-export const GlobalAlloc = isWindows
-  ? koffi.load('kernel32.dll').func('GlobalAlloc', 'void*', ['uint32', 'uintptr'])
-  : (() => { throw new Error('Windows API not available on this platform'); }) as any;
-
-/**
- * Free global memory handle
- */
-export const GlobalFree = isWindows
-  ? koffi.load('kernel32.dll').func('GlobalFree', 'void*', ['void*'])
-  : (() => { throw new Error('Windows API not available on this platform'); }) as any;
-
-/**
- * Lock global memory handle
- */
-export const GlobalLock = isWindows
-  ? koffi.load('kernel32.dll').func('GlobalLock', 'void*', ['void*'])
-  : (() => { throw new Error('Windows API not available on this platform'); }) as any;
-
-/**
- * Unlock global memory handle
- */
-export const GlobalUnlock = isWindows
-  ? koffi.load('kernel32.dll').func('GlobalUnlock', 'bool', ['void*'])
-  : (() => { throw new Error('Windows API not available on this platform'); }) as any;
-
-// Global memory flags
-export const GMEM_MOVEABLE = 0x0002;
-export const GMEM_ZEROINIT = 0x0040;
-export const GHND = GMEM_MOVEABLE | GMEM_ZEROINIT;
+export const PrintDlgW = comdlg32.func('PrintDlgW', 'bool', [
+  koffi.inout(koffi.pointer(PRINTDLGW))  // lppd
+]);
