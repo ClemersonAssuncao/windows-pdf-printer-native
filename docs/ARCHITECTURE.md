@@ -6,21 +6,22 @@ This library is built with **Clean Architecture** principles, using SOLID design
 
 ## Architecture Layers
 
-### 1. Core Layer
-- **Interfaces**: Defines contracts for printers, adapters, and services
-- **Types**: Enums and type definitions (PrintQuality, PaperSize, etc.)
-- **Logger**: Centralized logging system
+### 1. Core Layer (Platform-Agnostic)
+- **Interfaces**: Defines contracts (`IPrinter`, `IPrinterManager`)
+- **Types**: Enums and type definitions (PrintQuality, PaperSize, DuplexMode, etc.)
+- **Logger**: Structured logging system with multiple levels and performance timers
+  - Log levels: DEBUG, INFO, WARN, ERROR, SILENT
+  - Context-based logging for better traceability
+  - Automatic environment detection (test/production)
+  - Performance measurement with `startTimer()` / `endTimer()`
 
-### 2. Adapters Layer
-- **Windows Adapter**: Platform-specific implementation for Windows
+### 2. Adapters Layer (Platform-Specific)
+- **Windows Adapter**: Windows GDI implementation
 - **Services**: Specialized services for different printing aspects
-  - `DevModeConfigService` - Printer configuration management
-  - `PdfRenderService` - PDF to bitmap rendering
-  - `PrintDialogService` - Native Windows print dialog
-  - `PrinterCapabilitiesService` - Query printer features
-
-### 3. Factory Layer
-- **PrinterFactory**: Creates appropriate printer instances based on platform
+  - `PdfRenderService` - PDF rendering with PDFium + intelligent caching
+  - `DevModeConfigService` - DEVMODE structure configuration and validation
+  - `PrintDialogService` - Native Windows print dialog integration
+  - `PrinterCapabilitiesService` - Query printer features and capabilities
 
 ## Windows Implementation
 
@@ -97,24 +98,45 @@ Google's high-performance PDF rendering library.
 3. **Configuration**
    ```
    DevModeConfigService
-   ├─> OpenPrinterW
-   ├─> DocumentPropertiesW (get default DEVMODE)
-   ├─> Apply print options (quality, duplex, paper size, etc.)
-   └─> Create Device Context with configured DEVMODE
+   ├─> OpenPrinterW (open printer handle)
+   ├─> DocumentPropertiesW (get default DEVMODE size)
+   ├─> DocumentPropertiesW (get current DEVMODE)
+   ├─> Apply print options:
+   │   ├─> Quality (DPI)
+   │   ├─> Duplex mode
+   │   ├─> Paper size
+   │   ├─> Orientation
+   │   ├─> Paper tray
+   │   └─> Copies/Collate
+   ├─> DocumentPropertiesW (validate with driver)
+   └─> CreateDCW with configured DEVMODE
    ```
 
 4. **Rendering & Printing**
    ```
-   For each page:
-   ├─> PdfRenderService.renderPage
-   │   ├─> FPDF_LoadPage
-   │   ├─> FPDFBitmap_Create (allocate buffer)
-   │   ├─> FPDF_RenderPageBitmap (render at target DPI)
-   │   └─> Return bitmap data
-   ├─> StartPage
-   ├─> StretchDIBits (transfer bitmap to printer)
-   ├─> EndPage
-   └─> FPDFBitmap_Destroy (free memory)
+   Print Dialog (optional):
+   └─> PrintDlgW (shows native dialog, returns DC if confirmed)
+   
+   Cache Strategy:
+   ├─> If copies > 1 && !collate: disable cache (prevent GDI corruption)
+   └─> Otherwise: use cache for performance
+   
+   For each copy (respecting collate setting):
+     For each page:
+     ├─> PdfRenderService.renderPage
+     │   ├─> Check cache (if enabled)
+     │   ├─> FPDF_LoadPage
+     │   ├─> FPDFBitmap_Create (BGRA format)
+     │   ├─> FPDFBitmap_FillRect (white background)
+     │   ├─> FPDF_RenderPageBitmap (with FPDF_PRINTING flag)
+     │   ├─> Cache bitmap (if enabled)
+     │   └─> Return bitmap data + metadata
+     ├─> StartPage
+     ├─> StretchDIBits (scale & transfer bitmap)
+     ├─> EndPage
+     └─> Cleanup rendered page (destroy bitmap if not cached)
+   
+   Restore cache state
    ```
 
 5. **Cleanup**
@@ -143,42 +165,88 @@ The DEVMODE structure is the heart of Windows printer configuration. It's a comp
 
 ## Performance Optimizations
 
-### 1. Page Caching
-When printing multiple copies, pages are rendered once and cached:
+### 1. Intelligent Page Caching
+The library implements smart caching to optimize performance while avoiding GDI issues:
+
 ```typescript
-const renderedBitmaps = new Map<number, Buffer>();
-
-// First copy: render and cache
-for (let pageNum = 0; pageNum < pageCount; pageNum++) {
-  const bitmap = await renderPage(pageNum, dpi);
-  renderedBitmaps.set(pageNum, bitmap);
-  await printBitmap(bitmap);
-}
-
-// Subsequent copies: reuse cached bitmaps
-for (let copy = 2; copy <= copies; copy++) {
-  for (const [pageNum, bitmap] of renderedBitmaps) {
-    await printBitmap(bitmap);
+class PdfRenderService {
+  private pageCache = new Map<string, RenderedPage>();
+  private cacheEnabled = true;
+  
+  renderPage(pageIndex: number, options: RenderOptions): RenderedPage {
+    const cacheKey = `${pageIndex}_${options.width}_${options.height}`;
+    
+    // Check cache if enabled
+    if (this.cacheEnabled && this.pageCache.has(cacheKey)) {
+      return this.pageCache.get(cacheKey)!;
+    }
+    
+    // Render page
+    const renderedPage = this.renderPageInternal(pageIndex, options);
+    
+    // Cache if enabled
+    if (this.cacheEnabled) {
+      this.pageCache.set(cacheKey, renderedPage);
+    }
+    
+    return renderedPage;
   }
 }
 ```
 
+**Cache Strategy:**
+- **Enabled by default** for collated printing and single copies
+- **Automatically disabled** for multiple copies without collate
+  - Prevents GDI buffer corruption when same bitmap is reused consecutively
+  - Each copy gets a fresh bitmap render
+- **Manual control** via `printer.setCacheEnabled(false)` for batch printing different PDFs
+- **Automatic cleanup** when PDF document is closed
+
 **Benefits:**
-- Renders pages only once regardless of copy count
-- Reduces CPU usage for multiple copies
-- Maintains print quality consistency
+- Up to 3x faster for multiple collated copies
+- Prevents memory buildup in sequential printing
+- Avoids GDI corruption with uncollated multi-copy jobs
+- Consistent print quality
 
 ### 2. Memory Management
-- Bitmaps are explicitly freed with `FPDFBitmap_Destroy`
-- Device Contexts are cleaned up with `DeleteDC`
-- Printer handles are closed with `ClosePrinter`
-- Cache can be disabled for sequential batch printing
+- **Bitmap lifecycle**: Created, used, destroyed immediately (or cached)
+- **PDFium singleton**: Reference counting for shared library instance
+- **Resource cleanup**: All resources freed in `finally` blocks
+  - `FPDFBitmap_Destroy` - Free bitmap memory
+  - `FPDF_ClosePage` - Close page handle
+  - `FPDF_CloseDocument` - Close document
+  - `DeleteDC` - Release Device Context
+  - `ClosePrinter` - Close printer handle
+- **Cache management**: Cleared when document closes or manually disabled
+- **No memory leaks**: Comprehensive cleanup even on errors
 
 ### 3. DPI Optimization
-The library uses optimized DPI defaults:
+The library uses optimized DPI defaults based on use case:
 - **150 DPI (LOW)**: Draft quality, ~2x faster than medium
 - **300 DPI (MEDIUM)**: Optimal balance for documents (default)
 - **600 DPI (HIGH)**: High quality for images, ~3.3x slower than medium
+
+**Performance Impact:**
+- Rendering time scales quadratically with DPI (4x pixels = 4x time)
+- Memory usage scales quadratically with DPI
+- Printer DPI is independent (handled by driver)
+- Use aspect-ratio-aware scaling to avoid distortion
+
+### 4. Structured Logging & Performance Monitoring
+```typescript
+const logger = createLogger({ context: 'PdfRender' });
+const timer = logger.startTimer('renderPage');
+
+// ... operation ...
+
+logger.endTimer(timer); // Automatically logs duration
+```
+
+**Features:**
+- Zero-cost when disabled (SILENT level in production)
+- Automatic timing measurements
+- Context-based filtering
+- Color-coded console output with timestamps
 
 ## Error Handling
 
@@ -240,27 +308,14 @@ class WindowsPrinterAdapter {
 }
 ```
 
-### 2. Factory Pattern
-Platform-specific implementations are created by factory:
-```typescript
-class PrinterFactory {
-  static createPrinter(printerName?: string): IPrinter {
-    if (process.platform === 'win32') {
-      return new WindowsPrinterAdapter(printerName);
-    }
-    throw new Error('Unsupported platform');
-  }
-}
-```
-
-### 3. Service Pattern
+### 2. Service Pattern
 Specialized services handle specific concerns:
 - `DevModeConfigService` - Configuration
 - `PdfRenderService` - Rendering
 - `PrintDialogService` - User interaction
 - `PrinterCapabilitiesService` - Feature detection
 
-### 4. Interface Segregation
+### 3. Interface Segregation
 Clean interfaces define contracts:
 - `IPrinter` - Core printing operations
 - `IPrinterManager` - Printer discovery

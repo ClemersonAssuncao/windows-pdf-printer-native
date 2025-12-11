@@ -81,19 +81,52 @@ npm run example:simple
 # Advanced example
 npm run example:advanced
 
-# Quality example
-npm run example:quality
+# List printers
+npm run example:list
+
+# Printer capabilities
+npm run example:capabilities
+
+# Print queue test
+npm run example:queue
 ```
 
 ### Enable Debug Logging
 
+The project includes a structured logging system with multiple levels:
+
 ```bash
+# Enable DEBUG level (most verbose)
 # Windows CMD
-set DEBUG=1 && npm run example:simple
+set LOG_LEVEL=DEBUG && npm run example:simple
 
 # PowerShell
-$env:DEBUG=1; npm run example:simple
+$env:LOG_LEVEL="DEBUG"; npm run example:simple
+
+# Bash
+LOG_LEVEL=DEBUG npm run example:simple
 ```
+
+**Available Log Levels:**
+- `DEBUG` - All messages including performance metrics
+- `INFO` - General information (default in development)
+- `WARN` - Warning messages
+- `ERROR` - Error messages only
+- `SILENT` - No logging (default in test/production)
+
+**Alternative Debug Flag:**
+```bash
+# Legacy DEBUG flag still supported
+DEBUG=1 npm run example:simple
+
+# Or use DEBUG=* for compatibility
+DEBUG=* npm run example:simple
+```
+
+**Auto-configuration by NODE_ENV:**
+- `NODE_ENV=test` → SILENT
+- `NODE_ENV=production` → INFO
+- Other → INFO
 
 ## Project Structure
 
@@ -103,38 +136,49 @@ windows-pdf-printer-native/
 │   ├── core/                    # Domain layer (platform-agnostic)
 │   │   ├── types/               # Enums and interfaces
 │   │   │   └── index.ts         # PrintQuality, PaperSize, DuplexMode, etc.
-│   │   └── interfaces/          # Contracts (IPrinter, IPrinterManager)
-│   │       └── index.ts
+│   │   ├── interfaces/          # Contracts (IPrinter, IPrinterManager)
+│   │   │   └── index.ts
+│   │   └── logger/              # Structured logging system
+│   │       ├── logger.ts        # Logger class implementation
+│   │       ├── types.d.ts       # Logger type definitions
+│   │       └── index.ts         # Public exports
 │   │
 │   ├── adapters/                # Infrastructure layer (platform-specific)
 │   │   └── windows/
-│   │       ├── api/             # Windows API bindings
-│   │       │   ├── gdi32.api.ts        # GDI32.dll functions
-│   │       │   ├── winspool.api.ts     # Winspool.drv functions
-│   │       │   ├── kernel32.api.ts     # Kernel32.dll functions
-│   │       │   ├── pdfium.api.ts       # PDFium bindings
+│   │       ├── api/             # Windows API bindings (koffi FFI)
+│   │       │   ├── gdi32.api.ts        # GDI32.dll functions (printing)
+│   │       │   ├── winspool.api.ts     # Winspool.drv (printer management)
+│   │       │   ├── kernel32.api.ts     # Kernel32.dll (system functions)
+│   │       │   ├── comdlg32.api.ts     # Comdlg32.dll (print dialog)
+│   │       │   ├── pdfium.api.ts       # PDFium library bindings
 │   │       │   └── index.ts            # Barrel exports
 │   │       │
 │   │       ├── services/        # Specialized services
-│   │       │   ├── pdf-render.service.ts        # PDFium rendering
-│   │       │   ├── devmode-config.service.ts    # DEVMODE configuration
-│   │       │   └── printer-connection.service.ts # Printer connection
+│   │       │   ├── pdf-render.service.ts          # PDFium rendering & caching
+│   │       │   ├── devmode-config.service.ts      # DEVMODE configuration
+│   │       │   ├── print-dialog.service.ts        # Windows print dialog
+│   │       │   └── printer-capabilities.service.ts # Printer info & capabilities
 │   │       │
-│   │       ├── windows-printer.adapter.ts        # IPrinter implementation
+│   │       ├── windows-printer.adapter.ts         # IPrinter implementation
 │   │       └── windows-printer-manager.adapter.ts # IPrinterManager implementation
-│   │
-│   ├── factories/               # Factory pattern
-│   │   └── printer.factory.ts   # Creates platform-specific instances
-│   │
-│   ├── services/                # Application services
-│   │   └── platform-detector.service.ts
 │   │
 │   └── index.ts                 # Public API exports
 │
 ├── bin/                         # Native binaries
 │   └── pdfium.dll               # PDFium library (included in npm package)
 ├── examples/                    # Usage examples
+│   ├── simple-print.ts          # Basic printing
+│   ├── advanced-print.ts        # Advanced options
+│   ├── list-printers.ts         # List available printers
+│   ├── get-capabilities.ts      # Get printer capabilities
+│   ├── print-with-dialog.ts     # Print with dialog
+│   └── test-print-queue.ts      # Multiple print jobs
 ├── tests/                       # Unit and integration tests
+│   ├── logger.test.ts
+│   └── services/
+│       ├── devmode-config.service.test.ts
+│       ├── pdf-render.service.test.ts
+│       └── print-dialog.service.test.ts
 └── lib/                         # Compiled output (generated)
 ```
 
@@ -146,19 +190,24 @@ This project follows **Clean Architecture** (Hexagonal Architecture):
    - Contains business logic, types, and interfaces
    - No external dependencies
    - Platform-agnostic
+   - Includes structured logging system
 
 2. **Adapters Layer (Infrastructure)**
    - Windows-specific implementations
-   - API bindings (GDI32, Winspool, PDFium)
+   - API bindings (GDI32, Winspool, PDFium, Comdlg32)
    - Service implementations
+   - All Windows API calls use koffi FFI
 
-3. **Factories**
-   - Creates platform-specific instances
-   - Dependency injection
+3. **Services**
+   - **PdfRenderService**: PDF rendering with PDFium, page caching
+   - **DevModeConfigService**: DEVMODE structure configuration
+   - **PrintDialogService**: Windows print dialog integration
+   - **PrinterCapabilitiesService**: Query printer information
 
 4. **Public API**
    - Clean, user-friendly facade
-   - Backward compatibility
+   - Main exports: `PDFPrinter`, `listPrinters`, `getDefaultPrinter`
+   - All enums and types exported for configuration
 
 ## Coding Standards
 
@@ -250,18 +299,46 @@ throw new Error('Print failed');
 
 1. **Memory Management**
    - Clean up resources in `finally` blocks
-   - Use reference counting for shared resources
-   - Destroy PDFium bitmaps after use
+   - Use reference counting for shared resources (PDFium singleton)
+   - Destroy PDFium bitmaps immediately after use
+   - Proper cleanup in adapters and services
 
-2. **Caching**
-   - Cache rendered pages for multiple copies
-   - Reuse singleton PDFium instance
-   - Clean cache when done
+2. **Page Caching Strategy**
+   - **Enabled by default** for better performance with multiple copies
+   - **Automatically disabled** when printing multiple copies without collate (to prevent GDI buffer corruption)
+   - Cache is cleared when PDF document is closed
+   - Use `printer.setCacheEnabled(false)` when printing many different PDFs sequentially
+   
+   ```typescript
+   // Good: Disable cache for sequential printing of different PDFs
+   const printer = new PDFPrinter();
+   printer.setCacheEnabled(false);
+   for (const pdf of manyPdfs) {
+     await printer.print(pdf);
+   }
+   
+   // Good: Enable cache for multiple copies of same PDF (default)
+   printer.setCacheEnabled(true);
+   await printer.print(pdf, { copies: 10 });
+   ```
 
-3. **Debug Logging**
-   - Use `process.env.DEBUG` flag
-   - Log performance metrics
-   - Include timing information
+3. **Structured Logging**
+   - Use Logger class with appropriate log levels
+   - Performance timers: `logger.startTimer()` and `logger.endTimer()`
+   - Context-based logging: `createLogger({ context: 'ServiceName' })`
+   - Automatically disabled in test environment
+   
+   ```typescript
+   const logger = createLogger({ context: 'PdfRender' });
+   const timer = logger.startTimer('renderPage');
+   // ... operation ...
+   logger.endTimer(timer);
+   ```
+
+4. **GDI Resource Management**
+   - Always delete Device Contexts with `DeleteDC()`
+   - Close printer handles with `ClosePrinter()`
+   - Use try-finally blocks for guaranteed cleanup
 
 ## Testing
 
@@ -282,24 +359,50 @@ npm test -- windows-print-api.test.ts
 
 1. **Unit Tests**
    ```typescript
+   describe('Logger', () => {
+     it('should create logger with context', () => {
+       const logger = createLogger({ context: 'Test' });
+       expect(logger).toBeDefined();
+     });
+     
+     it('should respect log level', () => {
+       const logger = createLogger({ level: LogLevel.ERROR });
+       // Only ERROR level messages should appear
+     });
+   });
+   
    describe('PdfRenderService', () => {
      it('should initialize PDFium library', async () => {
        const service = new PdfRenderService();
        await service.initialize();
-       expect(service.isInitialized()).toBe(true);
+       // Verify initialization
+     });
+     
+     it('should cache rendered pages', () => {
+       const service = new PdfRenderService();
+       service.setCacheEnabled(true);
+       // Test caching behavior
      });
    });
    ```
 
 2. **Integration Tests**
    - Test real printer operations
-   - Test with actual PDF files
+   - Test with actual PDF files (use `bin/test.pdf`)
    - Verify print job creation
+   - Test DEVMODE configuration
+   - Test print dialog integration
 
 3. **Test Coverage**
    - Aim for >80% coverage
-   - Focus on critical paths
-   - Test error scenarios
+   - Focus on critical paths (printing, rendering, DEVMODE config)
+   - Test error scenarios (invalid printers, missing PDFs)
+   - Test edge cases (multiple copies, collate modes)
+
+4. **Test Environment**
+   - Logging is automatically SILENT in test environment
+   - Use `LOG_LEVEL=DEBUG` for debugging tests
+   - Mock Windows API calls when appropriate
 
 ### Manual Testing
 
