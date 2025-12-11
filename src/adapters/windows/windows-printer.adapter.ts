@@ -219,53 +219,70 @@ export class WindowsPrinterAdapter implements IPrinter {
             // Handle copies with respect to collate option
             const collate = finalOptions?.collate === true; // Default to false if not specified
             
-            if (collate) {
-              // COLLATE = TRUE: Print complete sets (page1, page2, page3, page1, page2, page3)
-              this.logger.debug(`Collate enabled: printing ${copies} complete set(s)`);
-              for (let copy = 0; copy < copies; copy++) {
-                const copyTimer = this.logger.startTimer(`Copy ${copy + 1}/${copies}`);
-                this.logger.debug(`Starting copy ${copy + 1}/${copies}`);
-                
-                // Print each page in the range for this copy
-                for (let pageIndex = startPage; pageIndex <= endPage; pageIndex++) {
-                  await this.printPdfPage(
-                    hDC,
-                    pdfDoc,
-                    pageIndex,
-                    printerWidth,
-                    printerHeight,
-                    renderDpi,
-                    printerDpiX,
-                    printerDpiY
-                  );
-                  this.logger.debug(`Page ${pageIndex + 1}/${pageCount} printed`);
-                }
-                
-                this.logger.endTimer(copyTimer);
-              }
-            } else {
-              // COLLATE = FALSE: Print all copies of each page (page1, page1, page2, page2, page3, page3)
-              this.logger.debug(`Collate disabled: printing ${copies} copy(ies) of each page`);
-              for (let pageIndex = startPage; pageIndex <= endPage; pageIndex++) {
-                const pageTimer = this.logger.startTimer(`Page ${pageIndex + 1}/${pageCount}`);
-                this.logger.debug(`Printing ${copies} copy(ies) of page ${pageIndex + 1}`);
-                
-                // Print all copies of this page
+            // Disable cache for multiple copies without collate to avoid buffer reuse issues
+            // When collate is disabled, the same page is printed multiple times consecutively
+            // and reusing the cached bitmap buffer can cause GDI corruption
+            const originalCacheState = this.pdfRenderService.isCacheEnabled();
+            if (copies > 1 && !collate) {
+              this.logger.debug('Disabling cache for multiple copies without collate');
+              this.pdfRenderService.setCacheEnabled(false);
+            }
+            
+            try {
+              if (collate) {
+                // COLLATE = TRUE: Print complete sets (page1, page2, page3, page1, page2, page3)
+                this.logger.debug(`Collate enabled: printing ${copies} complete set(s)`);
                 for (let copy = 0; copy < copies; copy++) {
-                  await this.printPdfPage(
-                    hDC,
-                    pdfDoc,
-                    pageIndex,
-                    printerWidth,
-                    printerHeight,
-                    renderDpi,
-                    printerDpiX,
-                    printerDpiY
-                  );
+                  const copyTimer = this.logger.startTimer(`Copy ${copy + 1}/${copies}`);
+                  this.logger.debug(`Starting copy ${copy + 1}/${copies}`);
+                  
+                  // Print each page in the range for this copy
+                  for (let pageIndex = startPage; pageIndex <= endPage; pageIndex++) {
+                    await this.printPdfPage(
+                      hDC,
+                      pdfDoc,
+                      pageIndex,
+                      printerWidth,
+                      printerHeight,
+                      renderDpi,
+                      printerDpiX,
+                      printerDpiY
+                    );
+                    this.logger.debug(`Page ${pageIndex + 1}/${pageCount} printed`);
+                  }
+                  
+                  this.logger.endTimer(copyTimer);
                 }
-                
-                this.logger.debug(`Page ${pageIndex + 1}/${pageCount} completed (${copies} copies)`);
-                this.logger.endTimer(pageTimer);
+              } else {
+                // COLLATE = FALSE: Print all copies of each page (page1, page1, page2, page2, page3, page3)
+                this.logger.debug(`Collate disabled: printing ${copies} copy(ies) of each page`);
+                for (let pageIndex = startPage; pageIndex <= endPage; pageIndex++) {
+                  const pageTimer = this.logger.startTimer(`Page ${pageIndex + 1}/${pageCount}`);
+                  this.logger.debug(`Printing ${copies} copy(ies) of page ${pageIndex + 1}`);
+                  
+                  // Print all copies of this page
+                  for (let copy = 0; copy < copies; copy++) {
+                    await this.printPdfPage(
+                      hDC,
+                      pdfDoc,
+                      pageIndex,
+                      printerWidth,
+                      printerHeight,
+                      renderDpi,
+                      printerDpiX,
+                      printerDpiY
+                    );
+                  }
+                  
+                  this.logger.debug(`Page ${pageIndex + 1}/${pageCount} completed (${copies} copies)`);
+                  this.logger.endTimer(pageTimer);
+                }
+              }
+            } finally {
+              // Restore original cache state
+              if (copies > 1 && !collate) {
+                this.logger.debug('Restoring original cache state');
+                this.pdfRenderService.setCacheEnabled(originalCacheState);
               }
             }
             
