@@ -1,15 +1,6 @@
 # Windows PDF Printer Native
 
-A **high-performance**, **native Windows PDF printing library** for Node.js using **GDI32** and **PDFium**. Built with **Clean Architecture** principles for professional PDF printing applications.
-
-**Key Highlights:**
-- 🚀 **Pure GDI Rendering** - Direct GDI32 API integration for native Windows printing
-- 📄 **PDFium Integration** - High-quality PDF rendering using Google's PDFium library
-- ⚡ **Optimized Performance** - 44% faster than legacy approaches (300 DPI default, customizable)
-- 🎯 **Type-Safe Enums** - PrintQuality, PaperSize, DuplexMode, PageOrientation, ColorMode, PaperTray
-- 🏗️ **Clean Architecture** - SOLID principles, dependency injection, service-based design
-- 📦 **TypeScript First** - Full type safety with comprehensive interfaces and enums
-- 🎨 **Full Control** - Quality, paper size, duplex, orientation, color, tray selection
+A high-performance PDF printing library for Node.js on Windows. Print PDFs directly to Windows printers using native GDI32 API and Google's PDFium rendering engine.
 
 [![npm version](https://img.shields.io/npm/v/windows-pdf-printer-native.svg)](https://www.npmjs.com/package/windows-pdf-printer-native)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -18,51 +9,31 @@ A **high-performance**, **native Windows PDF printing library** for Node.js usin
 ## Table of Contents
 
 - [Features](#features)
-- [Architecture](#architecture)
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
+- [Usage Examples](#usage-examples)
 - [API Reference](#api-reference)
 - [Performance](#performance)
-- [Examples](#examples)
+- [More Examples](#more-examples)
+- [Troubleshooting](#troubleshooting)
+- [Documentation](#documentation)
 - [Contributing](#contributing)
 - [License](#license)
 
 ## Features
 
-### 🚀 Core Technology
-- **GDI32 API** - Native Windows Graphics Device Interface for direct printer control
-- **PDFium** - Google's PDF rendering engine for high-quality bitmap generation
-- **Koffi FFI** - Zero-overhead C library bindings for Node.js
-- **Kernel32.dll** - Library used to error handling in the printer adapter
-- **Comdlg32.dll** - Windows common dialogs library for native print dialog support
-- **Windows Only** - Optimized exclusively for Windows printing (7, 10, 11, Server)
-
-### 🎯 Type-Safe Enums
-- **PrintQuality** - `LOW` (150 DPI), `MEDIUM` (300 DPI), `HIGH` (600 DPI)
-- **PaperSize** - 95 standard sizes (A4, Letter, Legal, A3, envelopes, etc.)
-- **DuplexMode** - `SIMPLEX`, `HORIZONTAL`, `VERTICAL`
-- **PageOrientation** - `PORTRAIT`, `LANDSCAPE`
-- **ColorMode** - `MONOCHROME`, `COLOR`
-- **PaperTray** - `AUTO`, `UPPER`, `LOWER`, `MANUAL`, etc.
-
-### 🖨️ Printing Capabilities
-- **High Performance** - 44% faster than legacy methods (5.5s vs 9.8s for 4 pages)
-- **Quality Control** - Customizable DPI from 150 to 1200
-- **Full Configuration** - Paper size, tray, duplex, orientation, color, copies
-- **Memory Efficient** - Smart bitmap lifecycle management
-- **Debug Logging** - Detailed performance metrics via `DEBUG` environment variable
-
-### 📊 Printer Management
-- **List Printers** - Enumerate all system printers with capabilities
-- **Default Printer** - Automatic detection and usage
-- **DEVMODE Configuration** - Direct Windows printer settings control
+- 🖨️ **Windows Native** - Direct integration with Windows printing system (GDI32 + PDFium)
+- ⚡ **High Performance** - 44% faster than legacy approaches
+- 📄 **Quality Control** - Print at 150, 300, or 600 DPI
+- 🎯 **Full Configuration** - Paper size, duplex, orientation, color mode, paper tray
+- 📦 **TypeScript Support** - Full type definitions included
+- 🔧 **No Setup Required** - PDFium library included in the package
 
 ## Requirements
 
-- **Node.js 18.0.0 or higher**
-- **Windows 7 or later** (Windows 10/11 recommended)
-- **PDFium library** - ✅ **Included in the package** (`bin/pdfium.dll`)
+- **Node.js** 22.0.0 or higher
+- **Windows** 7 or later (Windows 10/11 recommended)
 
 ## Installation
 
@@ -70,27 +41,17 @@ A **high-performance**, **native Windows PDF printing library** for Node.js usin
 npm install windows-pdf-printer-native
 ```
 
-> **Note:** The PDFium library (`pdfium.dll`) is automatically included in the npm package. No additional setup required!
+> **Note:** All required dependencies (including PDFium) are included. No additional setup needed!
+
+
 
 ## Quick Start
 
-### Basic Usage
-
 ```typescript
-import { PDFPrinter, PrinterManager } from 'windows-pdf-printer-native';
+import { PDFPrinter } from 'windows-pdf-printer-native';
 
-// List available printers
-const printers = await PrinterManager.getAvailablePrinters();
-console.log('Available printers:', printers);
-
-// Get default printer
-const defaultPrinter = await PrinterManager.getDefaultPrinter();
-console.log('Default printer:', defaultPrinter);
-
-// Create printer instance (uses default printer)
+// Print to default printer
 const printer = new PDFPrinter();
-
-// Print with default settings (300 DPI, A4)
 await printer.print('./document.pdf');
 
 // Print to specific printer
@@ -98,351 +59,23 @@ const printer = new PDFPrinter('HP LaserJet Pro');
 await printer.print('./invoice.pdf');
 ```
 
-### Advanced Usage with Type-Safe Enums
+## Usage Examples
+
+### Basic Printing
 
 ```typescript
-import { 
-  PDFPrinter,
-  PrintQuality,
-  PaperSize,
-  DuplexMode,
-  PageOrientation,
-  ColorMode,
-  PaperTray
-} from 'windows-pdf-printer-native';
+import { PDFPrinter, PrinterManager } from 'windows-pdf-printer-native';
 
-const printer = new PDFPrinter();
-
-await printer.print('./document.pdf', {
-  copies: 2,
-  quality: PrintQuality.HIGH,           // 600 DPI
-  paperSize: PaperSize.A4,              // 210 x 297 mm
-  duplex: DuplexMode.VERTICAL,          // Long-edge binding
-  orientation: PageOrientation.LANDSCAPE, // Horizontal
-  color: ColorMode.COLOR,               // Color printing
-  paperTray: PaperTray.AUTO             // Auto-select tray
-});
-```
-
-### Quality Settings
-
-```typescript
-import { PrintQuality } from 'windows-pdf-printer-native';
-
-// Draft quality - fast, smaller files
-await printer.print('./draft.pdf', { 
-  quality: PrintQuality.LOW  // 150 DPI
-});
-
-// Standard quality - recommended
-await printer.print('./document.pdf', { 
-  quality: PrintQuality.MEDIUM  // 300 DPI (default)
-});
-
-// High quality - for images/photos
-await printer.print('./photo.pdf', { 
-  quality: PrintQuality.HIGH  // 600 DPI
-});
-```
-
-### Interactive Print Dialog
-
-Show the native Windows print dialog to allow users to configure print settings interactively:
-
-```typescript
-import { PDFPrinter } from 'windows-pdf-printer-native';
-
-// Pre-select a specific printer in the dialog
-const printer = new PDFPrinter('Microsoft Print to PDF');
-
-// Show print dialog with the printer pre-selected
-await printer.print('./document.pdf', {
-  showPrintDialog: true
-});
-
-// Show dialog with pre-populated settings
-await printer.print('./document.pdf', {
-  showPrintDialog: true,
-  copies: 2,                    // Pre-set 2 copies
-  duplex: DuplexMode.VERTICAL,  // Pre-set duplex mode
-  paperSize: PaperSize.A4       // Pre-set paper size
-  // User can still change these in the dialog
-});
-```
-
-**Key Features:**
-- 🖨️ **Printer Pre-selection** - Specified printer is pre-selected in the dialog
-- 📄 **Page Range Selection** - User can select specific pages (e.g., pages 1-3) or print all pages (default)
-- 🖱️ **User-Friendly** - Familiar Windows print dialog interface
-- ⚙️ **Full Control** - Users can override any programmatic settings
-- 🎯 **Pre-configured** - Can pre-populate settings while allowing user changes
-- ❌ **Cancellable** - User can cancel printing without error
-
-**Note:** When `showPrintDialog: true`, the print operation returns silently if the user cancels the dialog.
-
-## API Reference
-
-### Classes
-
-#### `PDFPrinter`
-
-Main class for printing PDF documents.
-
-## API Reference
-
-### Enums
-
-#### `PrintQuality`
-```typescript
-enum PrintQuality {
-  LOW = 150,      // Draft quality - fast, smaller files
-  MEDIUM = 300,   // Standard quality - recommended
-  HIGH = 600      // High quality - best for images
-}
-```
-
-#### `PaperSize`
-```typescript
-enum PaperSize {
-  LETTER = 1,     // 8.5 x 11 inches
-  LEGAL = 5,      // 8.5 x 14 inches
-  A3 = 8,         // 297 x 420 mm
-  A4 = 9,         // 210 x 297 mm
-  A5 = 11,        // 148 x 210 mm
-  TABLOID = 3,    // 11 x 17 inches
-  // ... 95 total paper sizes
-}
-```
-
-#### `DuplexMode`
-```typescript
-enum DuplexMode {
-  SIMPLEX = 1,      // Single-sided
-  HORIZONTAL = 2,   // Short-edge binding
-  VERTICAL = 3      // Long-edge binding
-}
-```
-
-#### `PageOrientation`
-```typescript
-enum PageOrientation {
-  PORTRAIT = 1,     // Vertical
-  LANDSCAPE = 2     // Horizontal
-}
-```
-
-#### `ColorMode`
-```typescript
-enum ColorMode {
-  MONOCHROME = 1,   // Black and white
-  COLOR = 2         // Color printing
-}
-```
-
-#### `PaperTray`
-```typescript
-enum PaperTray {
-  AUTO = 7,         // Automatic selection
-  UPPER = 1,        // Upper tray
-  LOWER = 2,        // Lower tray
-  MIDDLE = 3,       // Middle tray
-  MANUAL = 4,       // Manual feed
-  ENVELOPE = 5,     // Envelope feeder
-  // ... more tray options
-}
-```
-
-### Classes
-
-#### `PDFPrinter`
-
-**Constructor:**
-```typescript
-new PDFPrinter(printerName?: string)
-```
-
-**Methods:**
-
-**`print(pdfPath: string, options?: PrintOptions): Promise<void>`**
-```typescript
-await printer.print('./document.pdf', {
-  copies: 2,
-  quality: PrintQuality.HIGH,
-  paperSize: PaperSize.A4,
-  duplex: DuplexMode.VERTICAL,
-  orientation: PageOrientation.PORTRAIT,
-  color: ColorMode.COLOR,
-  paperTray: PaperTray.AUTO
-});
-```
-
-**`printRaw(data: Buffer, documentName?: string, options?: PrintOptions): Promise<void>`**
-```typescript
-const pdfBuffer = fs.readFileSync('./doc.pdf');
-await printer.printRaw(pdfBuffer, 'Document', options);
-```
-
-**`getPrinterName(): string`**
-```typescript
-const name = printer.getPrinterName();
-```
-
-#### `PrinterManager`
-
-**Static Methods:**
-
-**`getAvailablePrinters(): Promise<PrinterInfo[]>`**
-```typescript
+// List available printers
 const printers = await PrinterManager.getAvailablePrinters();
-printers.forEach(p => console.log(p.name, p.driverName));
-```
+printers.forEach(p => console.log(p.name));
 
-**`getDefaultPrinter(): Promise<string | null>`**
-```typescript
+// Get default printer
 const defaultPrinter = await PrinterManager.getDefaultPrinter();
-```
 
-**`printerExists(printerName: string): Promise<boolean>`**
-```typescript
-const exists = await PrinterManager.printerExists('HP LaserJet');
-```
-
-### Interfaces
-
-#### `PrintOptions`
-
-```typescript
-interface PrintOptions {
-  copies?: number;                      // Number of copies (1-9999)
-  quality?: PrintQuality | number;      // Render quality in DPI
-  paperSize?: PaperSize | number;       // Paper size
-  duplex?: DuplexMode;                  // Duplex mode
-  orientation?: PageOrientation;        // Page orientation
-  color?: ColorMode;                    // Color mode
-  paperTray?: PaperTray | number;       // Paper tray/source
-  collate?: boolean;                    // Collate copies
-  showPrintDialog?: boolean;            // Show Windows print dialog (default: false)
-}
-```
-
-#### `PrinterInfo`
-
-```typescript
-interface PrinterInfo {
-  name: string;
-  serverName?: string;
-  portName?: string;
-  driverName?: string;
-  location?: string;
-  comment?: string;
-  status: number;
-  isDefault?: boolean;
-}
-```
-
-## Performance
-
-### Benchmark Results
-
-**Test:** 4-page PDF document on Windows 10
-
-| Quality | DPI | Total Time | Per Page | File Size |
-|---------|-----|------------|----------|-----------|
-| **LOW** | 150 | ~3.2s | ~0.8s | Small |
-| **MEDIUM** (default) | 300 | ~5.5s | ~1.4s | Medium |
-| **HIGH** | 600 | ~18.5s | ~4.6s | Large |
-
-**Performance Improvements:**
-- ✅ **44% faster** than legacy WritePrinter approach
-- ✅ **72% faster per-page** rendering (300 DPI vs 706 DPI)
-- ✅ Smart bitmap lifecycle management prevents memory leaks
-- ✅ Page caching for multiple copies (render once, print many)
-
-### Optimization Tips
-
-1. **Use MEDIUM quality (300 DPI)** for documents - perfect balance
-2. **Use LOW quality (150 DPI)** for drafts - 2x faster
-3. **Use HIGH quality (600 DPI)** only for images/photos
-4. **Page caching** - enabled by default, renders once and reuses for multiple copies
-5. **Disable cache** when printing many different PDFs to prevent memory buildup
-6. **Batch printing** - reuse printer instance for multiple jobs
-
-### Cache Management
-
-Page caching is **enabled by default** for optimal performance when printing multiple copies. The cache is automatically cleared when closing a PDF document.
-
-```typescript
-const printer = new PDFPrinter();
-
-// Scenario 1: Printing multiple copies - keep cache enabled (default)
-await printer.print('./report.pdf', { copies: 10 });
-// ✓ Pages rendered once, cached, and reused for all 10 copies
-
-// Scenario 2: Printing different PDFs - consider disabling cache
-printer.setCacheEnabled(false);
-for (let i = 1; i <= 100; i++) {
-  await printer.print(`./invoice-${i}.pdf`);
-}
-// ✓ No cache buildup, memory efficient for sequential printing
-
-// Scenario 3: Re-enable cache for next job
-printer.setCacheEnabled(true);
-await printer.print('./another-doc.pdf', { copies: 5 });
-```
-
-## Examples
-
-### Simple Print
-
-```typescript
-import { PDFPrinter } from 'windows-pdf-printer-native';
-
+// Print with default settings (300 DPI)
 const printer = new PDFPrinter();
 await printer.print('./document.pdf');
-```
-
-### Print with Quality Control
-
-```typescript
-import { PDFPrinter, PrintQuality } from 'windows-pdf-printer-native';
-
-const printer = new PDFPrinter();
-
-// Fast draft printing
-await printer.print('./draft.pdf', { 
-  quality: PrintQuality.LOW 
-});
-
-// High-quality photo printing
-await printer.print('./photo.pdf', { 
-  quality: PrintQuality.HIGH 
-});
-```
-
-### Duplex Printing
-
-```typescript
-import { PDFPrinter, DuplexMode, PaperSize } from 'windows-pdf-printer-native';
-
-const printer = new PDFPrinter();
-
-// Vertical duplex (flip on long edge)
-await printer.print('./document.pdf', {
-  duplex: 'vertical',
-  paperSize: PAPER_A4
-});
-```
-
-### Print to Specific Printer
-
-```typescript
-import { PDFPrinter } from 'windows-pdf-printer-native';
-
-const printer = new PDFPrinter('HP LaserJet Pro');
-await printer.print('./document.pdf', {
-  copies: 5,
-  collate: true
-});
 ```
 
 ### Advanced Configuration
@@ -461,169 +94,368 @@ import {
 const printer = new PDFPrinter();
 
 await printer.print('./document.pdf', {
-  copies: 3,
-  duplex: DuplexMode.VERTICAL,
-  paperSize: PaperSize.A4,
-  paperTray: PaperTray.LOWER,
-  orientation: PageOrientation.PORTRAIT,
-  color: ColorMode.COLOR,
-  quality: PrintQuality.HIGH,
-  collate: true
+  copies: 2,
+  quality: PrintQuality.HIGH,              // 600 DPI
+  paperSize: PaperSize.A4,                 // 210 x 297 mm
+  duplex: DuplexMode.VERTICAL,             // Long-edge binding
+  orientation: PageOrientation.LANDSCAPE,  // Horizontal
+  color: ColorMode.COLOR,                  // Color printing
+  paperTray: PaperTray.AUTO                // Auto-select tray
 });
 ```
 
-### List All Printers
+### Print Quality Options
 
 ```typescript
-import { PrinterManager } from 'windows-pdf-printer-native';
+import { PrintQuality } from 'windows-pdf-printer-native';
 
-const printers = await PrinterManager.getAvailablePrinters();
+// Low quality - fast (150 DPI)
+await printer.print('./draft.pdf', { 
+  quality: PrintQuality.LOW
+});
 
-printers.forEach(printer => {
-  console.log(`${printer.name}${printer.isDefault ? ' (DEFAULT)' : ''}`);
+// Medium quality - default (300 DPI)
+await printer.print('./document.pdf', { 
+  quality: PrintQuality.MEDIUM
+});
+
+// High quality - best for images (600 DPI)
+await printer.print('./photo.pdf', { 
+  quality: PrintQuality.HIGH
 });
 ```
+
+### Interactive Print Dialog
+
+```typescript
+// Show Windows print dialog
+await printer.print('./document.pdf', {
+  showPrintDialog: true
+});
+
+// Pre-populate dialog settings
+await printer.print('./document.pdf', {
+  showPrintDialog: true,
+  copies: 2,
+  duplex: DuplexMode.VERTICAL,
+  paperSize: PaperSize.A4
+});
+```
+
+## API Reference
+
+### Classes
+
+#### `PDFPrinter`
+
+Main class for printing PDF documents.
+
+## API Reference
+
+### PDFPrinter
+
+Main class for printing PDF documents.
+
+#### Constructor
+```typescript
+new PDFPrinter(printerName?: string)
+```
+
+**Parameters:**
+- `printerName` (optional): Name of the printer. If not provided, uses the system default printer.
+
+#### Methods
+
+##### `print(pdfPath: string, options?: PrintOptions): Promise<void>`
+
+Print a PDF file.
+
+```typescript
+await printer.print('./document.pdf', {
+  copies: 2,
+  quality: PrintQuality.HIGH,
+  paperSize: PaperSize.A4,
+  duplex: DuplexMode.VERTICAL
+});
+```
+
+**Parameters:**
+- `pdfPath`: Absolute or relative path to the PDF file
+- `options`: Print configuration options (see PrintOptions below)
+
+##### `printRaw(data: Buffer, documentName?: string, options?: PrintOptions): Promise<void>`
+
+Print from a PDF buffer.
+
+```typescript
+const pdfBuffer = fs.readFileSync('./doc.pdf');
+await printer.printRaw(pdfBuffer, 'MyDocument', options);
+```
+
+**Parameters:**
+- `data`: PDF file as Buffer
+- `documentName` (optional): Name for the print job
+- `options`: Print configuration options
+
+##### `getPrinterName(): string`
+
+Get the name of the printer being used.
+
+```typescript
+const name = printer.getPrinterName();
+console.log('Using printer:', name);
+```
+
+##### `setCacheEnabled(enabled: boolean): void`
+
+Enable or disable page caching. Caching improves performance when printing multiple copies but uses more memory.
+
+```typescript
+// Disable cache for batch processing
+printer.setCacheEnabled(false);
+```
+
+### PrinterManager
+
+Static class for managing printers.
+
+#### Methods
+
+##### `getAvailablePrinters(): Promise<PrinterInfo[]>`
+
+List all available printers.
+
+```typescript
+const printers = await PrinterManager.getAvailablePrinters();
+printers.forEach(p => console.log(p.name));
+```
+
+##### `getDefaultPrinter(): Promise<string | null>`
+
+Get the default printer name.
+
+```typescript
+const defaultPrinter = await PrinterManager.getDefaultPrinter();
+```
+
+##### `printerExists(printerName: string): Promise<boolean>`
+
+Check if a printer exists.
+
+```typescript
+const exists = await PrinterManager.printerExists('HP LaserJet');
+```
+
+### PrintOptions
+
+Configuration options for printing.
+
+```typescript
+interface PrintOptions {
+  copies?: number;                 // Number of copies (default: 1)
+  quality?: PrintQuality;          // Print quality (default: MEDIUM)
+  paperSize?: PaperSize;           // Paper size (default: printer default)
+  duplex?: DuplexMode;             // Duplex mode (default: SIMPLEX)
+  orientation?: PageOrientation;   // Page orientation (default: PORTRAIT)
+  color?: ColorMode;               // Color mode (default: COLOR)
+  paperTray?: PaperTray;           // Paper tray (default: AUTO)
+  collate?: boolean;               // Collate copies (default: false)
+  showPrintDialog?: boolean;       // Show print dialog (default: false)
+}
+```
+
+### Enums
+
+#### PrintQuality
+```typescript
+enum PrintQuality {
+  LOW = 150,      // Fast, lower quality
+  MEDIUM = 300,   // Balanced (default)
+  HIGH = 600      // Best quality, slower
+}
+```
+
+#### PaperSize
+```typescript
+enum PaperSize {
+  LETTER = 1,     // 8.5 x 11 inches
+  LEGAL = 5,      // 8.5 x 14 inches
+  A3 = 8,         // 297 x 420 mm
+  A4 = 9,         // 210 x 297 mm
+  A5 = 11,        // 148 x 210 mm
+  TABLOID = 3,    // 11 x 17 inches
+  // ... 95 total sizes available
+}
+```
+
+#### DuplexMode
+```typescript
+enum DuplexMode {
+  SIMPLEX = 1,      // Single-sided
+  HORIZONTAL = 2,   // Flip on short edge
+  VERTICAL = 3      // Flip on long edge
+}
+```
+
+#### PageOrientation
+```typescript
+enum PageOrientation {
+  PORTRAIT = 1,     // Vertical
+  LANDSCAPE = 2     // Horizontal
+}
+```
+
+#### ColorMode
+```typescript
+enum ColorMode {
+  MONOCHROME = 1,   // Black and white
+  COLOR = 2         // Color
+}
+```
+
+#### PaperTray
+```typescript
+enum PaperTray {
+  AUTO = 7,         // Automatic selection
+  UPPER = 1,        // Upper tray
+  LOWER = 2,        // Lower tray
+  MIDDLE = 3,       // Middle tray
+  MANUAL = 4,       // Manual feed
+  ENVELOPE = 5,     // Envelope feeder
+  // ... more options available
+}
+```
+
+### PrinterInfo
+
+Information about a printer.
+
+```typescript
+interface PrinterInfo {
+  name: string;           // Printer name
+  serverName?: string;    // Server name (for network printers)
+  portName?: string;      // Port name
+  driverName?: string;    // Driver name
+  location?: string;      // Physical location
+  comment?: string;       // Description
+  status: number;         // Status code
+  isDefault?: boolean;    // Is default printer
+}
+```
+
+## Performance
+
+This library is optimized for high performance:
+
+- ⚡ **44% faster** than legacy approaches
+- 🔥 **Page caching** - Render once, print multiple copies instantly
+- 💾 **Memory efficient** - Smart bitmap lifecycle management
+
+### Quality vs Speed
+
+| Quality | DPI | Speed | Best For |
+|---------|-----|-------|----------|
+| LOW | 150 | Fast | Draft documents |
+| MEDIUM | 300 | Balanced ⭐ | Standard documents |
+| HIGH | 600 | Slower | Photos, presentations |
+
+### Optimization Tips
+
+```typescript
+// For multiple copies - use cache (enabled by default)
+await printer.print('./report.pdf', { copies: 10 });
+
+// For batch processing - disable cache
+printer.setCacheEnabled(false);
+for (const file of files) {
+  await printer.print(file);
+}
+```
+
+📖 **See detailed benchmarks and optimization strategies in [Performance Guide](./docs/PERFORMANCE.md)**
+
+## More Examples
+
+Check the [`examples/`](./examples) directory for complete working examples:
+
+- [`simple-print.ts`](./examples/simple-print.ts) - Basic printing
+- [`advanced-print.ts`](./examples/advanced-print.ts) - Full configuration
+- [`list-printers.ts`](./examples/list-printers.ts) - Enumerate printers
+- [`print-with-dialog.ts`](./examples/print-with-dialog.ts) - Interactive dialog
+- [`test-performance.ts`](./examples/test-performance.ts) - Performance testing
 
 ## Troubleshooting
 
 ### Common Issues
 
-#### "Printer not found" error
-
-Make sure the printer name is correct. Use `listPrinters()` to see all available printers:
-
+**Printer not found?**
 ```typescript
-import { listPrinters } from 'windows-pdf-printer-native';
-const printers = await listPrinters();
+// List all available printers
+const printers = await PrinterManager.getAvailablePrinters();
 console.log(printers);
 ```
 
-#### "Failed to start print job" error (Windows)
+**Print job fails?**
+- Verify printer is online and not paused
+- Check printer permissions
+- Ensure printer driver is installed
+- Try printing a test page from Windows Settings
 
-- Verify the printer is online and not paused
-- Check you have sufficient permissions to print
-- Ensure the printer driver is properly installed
-- Try printing a test page from Windows Settings to confirm functionality
-- Check Windows Event Viewer for detailed error messages
+**PDF not rendering correctly?**
+- Verify the PDF file is valid
+- Test with a simple PDF first
+- Try increasing print quality
 
-#### PDF not rendering correctly
-
-This library renders PDF to bitmap using PDFium and sends it via GDI:
-
-- Ensure your printer is online and has the correct driver installed
-- Verify the PDF file is valid and not corrupted
-- For complex PDFs with advanced features, consider pre-processing
-- Test with a simple single-page PDF first
-
-### Platform-Specific Notes
-
-#### Windows
-- Requires the printer to be installed and configured in Windows
-- Driver-specific features may vary between printer models
-- Some printers may require specific data formats (RAW vs. PostScript)
+📖 **For detailed troubleshooting, see [Troubleshooting Guide](./docs/TROUBLESHOOTING.md)**
 
 ## Platform Support
 
-**This library supports Windows only.**
+**Windows Only** - This library is designed exclusively for Windows (7, 10, 11, Server).
 
-For Unix/Linux/macOS printing, we recommend using [unix-print](https://www.npmjs.com/package/unix-print).
-
-### Windows Requirements
-- **Windows 7 or later** (Windows 10/11 recommended)
-- **GDI32.dll** - Graphics Device Interface for rendering and bitmap operations (included with Windows)
-- **Winspool.drv** - Windows spooler driver for printer management and job control (included with Windows)
-- **Kernel32.dll** - Library used to error handling in the printer adapter (included with Windows)
-- **Comdlg32.dll** - Common dialogs API for native Windows print dialog (included with Windows)
-- **PDFium library** - Google's PDF rendering engine (pdfium.dll, included in package)
+For Unix/Linux/macOS, use [unix-print](https://www.npmjs.com/package/unix-print).
 
 ### How It Works
 
-This library uses a pure GDI approach with PDFium for PDF rendering:
+This library uses Windows native APIs:
+- **PDFium** - Renders PDF pages to bitmaps at specified DPI
+- **GDI32** - Transfers bitmaps to printer via Windows Graphics Device Interface
+- **Winspool** - Manages printer configuration and job control
 
-1. **PDFium Rendering**
-   - `FPDF_InitLibrary` - Initialize PDFium
-   - `FPDF_LoadMemDocument` - Load PDF from memory
-   - `FPDF_RenderPageBitmap` - Render page to bitmap (150-1200 DPI)
-   - `FPDFBitmap_Destroy` - Clean up bitmap resources
+📖 **For technical details, see [Architecture Guide](./docs/ARCHITECTURE.md)**
 
-2. **GDI Printing**
-   - `CreateDCW` - Create Device Context with DEVMODE settings
-   - `StartDocW` - Start print job
-   - `StartPage` - Begin new page
-   - `StretchDIBits` - Transfer bitmap to printer with scaling
-   - `EndPage` - Finish page
-   - `EndDoc` - Complete print job
-   - `DeleteDC` - Release Device Context
+## Documentation
 
-3. **Configuration**
-   - DEVMODE structure controls all printer settings
-   - `DocumentPropertiesW` retrieves printer capabilities
-   - Direct API calls, no intermediate files or processes
-
-### Features
-- ✅ **Printer Discovery** - List all system printers
-- ✅ **Default Printer** - Automatic detection
-- ✅ **Duplex Printing** - Simplex, horizontal, vertical
-- ✅ **Paper Size** - 95 standard sizes via PaperSize enum
-- ✅ **Paper Tray** - Upper, lower, manual feed, auto-select
-- ✅ **Print Quality** - 150-1200 DPI via PrintQuality enum
-- ✅ **Color Mode** - Color or monochrome
-- ✅ **Orientation** - Portrait or landscape
-- ✅ **Multiple Copies** - With collation support
-- ✅ **Printer Capabilities** - Query duplex/color support
-
-## Testing
-
-This library includes a comprehensive test suite covering all major functionality:
-
-### Running Tests
-
-```bash
-# Run all tests
-npm test
-
-# Run tests in watch mode
-npm run test:watch
-
-# Run tests with coverage report
-npm run test:coverage
-
-# Run tests with verbose output
-npm run test:verbose
-```
+- 📖 [Architecture & Technical Details](./docs/ARCHITECTURE.md)
+- ⚡ [Performance Guide](./docs/PERFORMANCE.md)
+- 🔧 [Troubleshooting Guide](./docs/TROUBLESHOOTING.md)
 
 ## Contributing
 
-Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details on:
-- Development setup
-- Code style guidelines
-- Testing requirements
-- Submitting pull requests
+Contributions are welcome! See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
+
+## Testing
+
+```bash
+npm test                # Run all tests
+npm run test:watch      # Watch mode
+npm run test:coverage   # Coverage report
+```
 
 ## Changelog
 
-See [CHANGELOG.md](CHANGELOG.md) for a list of changes in each version.
+See [CHANGELOG.md](./CHANGELOG.md) for version history.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT License - see [LICENSE](./LICENSE) file for details.
 
-## Support
+## Links
 
-- 📖 **Documentation**: Full API reference available in this README
-- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/ClemersonAssuncao/windows-pdf-printer-native/issues)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/ClemersonAssuncao/windows-pdf-printer-native/discussions)
-
-## Acknowledgments
-
-- Built with [Koffi](https://github.com/Koromix/koffi) for native Windows API integration
-- Inspired by the Node.js printing community
-
-## Related Projects
-
-- [unix-print](https://www.npmjs.com/package/unix-print) - For Unix/Linux/macOS printing
-- [PDFium](https://pdfium.googlesource.com/pdfium/) - Google's PDF rendering library
+- � [npm Package](https://www.npmjs.com/package/windows-pdf-printer-native)
+- 🐛 [Report Issues](https://github.com/ClemersonAssuncao/windows-pdf-printer-native/issues)
+- 💬 [Discussions](https://github.com/ClemersonAssuncao/windows-pdf-printer-native/discussions)
+- 🔗 [unix-print](https://www.npmjs.com/package/unix-print) - For Unix/Linux/macOS
 
 ---
 
-Created with ❤️ for the Node.js community
+Made with ❤️ for the Node.js community
