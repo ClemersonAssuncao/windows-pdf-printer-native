@@ -84,6 +84,10 @@ export class PdfRenderService {
     }
   }
 
+  isCacheEnabled(): boolean {
+    return this.cacheEnabled;
+  }
+
   /**
    * Cleanup PDFium library (using reference counting for singleton)
    */
@@ -233,7 +237,7 @@ export class PdfRenderService {
   ): { width: number; height: number } {
     const { width: pdfW, height: pdfH } = this.getPageDimensions(pdfDoc, pageIndex);
     const aspect = pdfW / pdfH;
-    const height = Math.floor(targetWidth / aspect);
+    const height = targetWidth / aspect;
     return { width: targetWidth, height };
   }
 

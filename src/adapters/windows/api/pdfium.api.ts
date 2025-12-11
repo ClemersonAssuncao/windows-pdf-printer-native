@@ -1,41 +1,37 @@
 // PDFium API bindings using koffi
 import koffi from 'koffi';
-import * as os from 'os';
 import * as path from 'path';
 import * as fs from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-
-// Only load PDFium on Windows platform
-const isWindows = os.platform() === 'win32';
-let pdfiumLib: any = null;
 
 // Get __dirname equivalent in ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Try to load PDFium from common locations
-if (isWindows) {
-  const possiblePaths = [
-    path.join(process.cwd(), 'bin', 'pdfium.dll'),
-    path.join(__dirname, '..', '..', '..', '..', 'bin', 'pdfium.dll')
-  ];
+let pdfiumLib: any = null;
+const possiblePaths = [
+  path.join(process.cwd(), 'bin', 'pdfium.dll'),
+  path.join(__dirname, '..', '..', '..', '..', 'bin', 'pdfium.dll')
+];
 
-  for (const dllPath of possiblePaths) {
-    if (fs.existsSync(dllPath)) {
-      try {
-        pdfiumLib = koffi.load(dllPath);
-        break;
-      } catch (e) {
-        // Try next path
-      }
+for (const dllPath of possiblePaths) {
+  if (fs.existsSync(dllPath)) {
+    try {
+      pdfiumLib = koffi.load(dllPath);
+      break;
+    } catch (e) {
+      // Try next path
     }
   }
+}
 
-  if (!pdfiumLib) {
-    console.warn('PDFium DLL not found. Please download pdfium.dll and place it in the bin/ directory.');
-    console.warn('Download from: https://github.com/bblanchon/pdfium-binaries/releases');
-  }
+if (!pdfiumLib) {
+  throw new Error(
+    'PDFium DLL not found. Please download pdfium.dll and place it in the bin/ directory.\n' +
+    'Download from: https://github.com/bblanchon/pdfium-binaries/releases'
+  );
 }
 
 // PDFium data structures
