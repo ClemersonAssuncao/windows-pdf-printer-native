@@ -52,7 +52,7 @@
   },
   "homepage": "https://github.com/ClemersonAssuncao/windows-pdf-printer-native#readme",
   "dependencies": {
-    "koffi": "^2.14.1"
+    "koffi": "^2.15.1"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
